@@ -1,0 +1,43 @@
+{
+  "name": "name-that-prompt",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "npm-run-all --parallel dev:backend dev:frontend",
+    "build": "tsc && vite build",
+    "dev:backend": "convex dev",
+    "dev:frontend": "vite --open --clearScreen false",
+    "predev": "convex dev --until-success"
+  },
+  "dependencies": {
+    "@headlessui/react": "^2.2.8",
+    "@tailwindcss/vite": "^4.1.13",
+    "@types/node": "^24.5.2",
+    "classnames": "^2.5.1",
+    "convex": "^1.27.3",
+    "convex-helpers": "^0.1.104",
+    "md5": "^2.3.0",
+    "openai": "^5.23.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/md5": "^2.3.5",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "@typescript-eslint/eslint-plugin": "^8.44.1",
+    "@typescript-eslint/parser": "^8.44.1",
+    "@vitejs/plugin-react": "^5.0.3",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.36.0",
+    "npm-run-all": "^4.1.5",
+    "postcss": "^8.5.6",
+    "prettier": "^3.6.2",
+    "prettier-plugin-tailwindcss": "^0.6.14",
+    "sass": "^1.93.2",
+    "tailwindcss": "^4.1.13",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.7"
+  }
+}

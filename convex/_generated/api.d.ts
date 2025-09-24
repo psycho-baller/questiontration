@@ -1,0 +1,54 @@
+/* eslint-disable */
+/**
+ * Generated `api` utility.
+ *
+ * THIS CODE IS AUTOMATICALLY GENERATED.
+ *
+ * To regenerate, run `npx convex dev`.
+ * @module
+ */
+
+import type {
+  ApiFromModules,
+  FilterApi,
+  FunctionReference,
+} from "convex/server";
+import type * as crons from "../crons.js";
+import type * as game from "../game.js";
+import type * as lib_myFunctions from "../lib/myFunctions.js";
+import type * as lib_randomSlug from "../lib/randomSlug.js";
+import type * as openai from "../openai.js";
+import type * as publicGame from "../publicGame.js";
+import type * as round from "../round.js";
+import type * as shared from "../shared.js";
+import type * as submissions from "../submissions.js";
+import type * as users from "../users.js";
+
+/**
+ * A utility for referencing Convex functions in your app's API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = api.myModule.myFunction;
+ * ```
+ */
+declare const fullApi: ApiFromModules<{
+  crons: typeof crons;
+  game: typeof game;
+  "lib/myFunctions": typeof lib_myFunctions;
+  "lib/randomSlug": typeof lib_randomSlug;
+  openai: typeof openai;
+  publicGame: typeof publicGame;
+  round: typeof round;
+  shared: typeof shared;
+  submissions: typeof submissions;
+  users: typeof users;
+}>;
+export declare const api: FilterApi<
+  typeof fullApi,
+  FunctionReference<any, "public">
+>;
+export declare const internal: FilterApi<
+  typeof fullApi,
+  FunctionReference<any, "internal">
+>;
