@@ -1,0 +1,122 @@
+[
+  {
+    "text": "What's your favorite pizza topping?",
+    "category": "food"
+  },
+  {
+    "text": "What superpower would you choose?",
+    "category": "fun"
+  },
+  {
+    "text": "What's your dream vacation destination?",
+    "category": "travel"
+  },
+  {
+    "text": "What's your favorite movie genre?",
+    "category": "entertainment"
+  },
+  {
+    "text": "What's your go-to comfort food?",
+    "category": "food"
+  },
+  {
+    "text": "What animal would you want as a pet?",
+    "category": "animals"
+  },
+  {
+    "text": "What's your favorite season?",
+    "category": "general"
+  },
+  {
+    "text": "What's your ideal way to spend a weekend?",
+    "category": "lifestyle"
+  },
+  {
+    "text": "What's your favorite type of music?",
+    "category": "entertainment"
+  },
+  {
+    "text": "What's your biggest fear?",
+    "category": "personal"
+  },
+  {
+    "text": "What's your favorite childhood memory?",
+    "category": "personal"
+  },
+  {
+    "text": "What's your dream job?",
+    "category": "career"
+  },
+  {
+    "text": "What's your favorite color?",
+    "category": "general"
+  },
+  {
+    "text": "What's your favorite board game?",
+    "category": "games"
+  },
+  {
+    "text": "What's your favorite ice cream flavor?",
+    "category": "food"
+  },
+  {
+    "text": "What's your favorite book or book genre?",
+    "category": "entertainment"
+  },
+  {
+    "text": "What's your favorite way to exercise?",
+    "category": "health"
+  },
+  {
+    "text": "What's your favorite holiday?",
+    "category": "general"
+  },
+  {
+    "text": "What's your favorite app on your phone?",
+    "category": "technology"
+  },
+  {
+    "text": "What's your biggest accomplishment?",
+    "category": "personal"
+  },
+  {
+    "text": "What's your favorite type of weather?",
+    "category": "general"
+  },
+  {
+    "text": "What's your favorite way to relax?",
+    "category": "lifestyle"
+  },
+  {
+    "text": "What's your favorite childhood cartoon?",
+    "category": "entertainment"
+  },
+  {
+    "text": "What's your favorite type of cuisine?",
+    "category": "food"
+  },
+  {
+    "text": "What's your biggest pet peeve?",
+    "category": "personal"
+  },
+  {
+    "text": "What's your favorite social media platform?",
+    "category": "technology"
+  },
+  {
+    "text": "What's your favorite time of day?",
+    "category": "general"
+  },
+  {
+    "text": "What's your favorite sport to watch or play?",
+    "category": "sports"
+  },
+  {
+    "text": "What's your favorite type of art?",
+    "category": "culture"
+  },
+  {
+    "text": "What's your favorite way to learn new things?",
+    "category": "education"
+  }
+]

@@ -4,11 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import type { Id } from "../convex/_generated/dataModel";
 import Game from "./Game";
 import GameRound from "./GameRound";
+import ConcentrationApp from "./ConcentrationApp";
 import { useSessionMutation } from "./hooks/useServerSession";
 
 const ConvexIdLength = 31;
 
 function App() {
+  const [currentGame, setCurrentGame] = useState<'prompt' | 'concentration'>('concentration');
   const hostGame = useSessionMutation(api.game.create);
   const [gameId, setGameId] = useState(() => {
     if (typeof window === "undefined") return null;
@@ -28,6 +30,24 @@ function App() {
     setGameId(gameId);
   }, []);
 
+  // If Concentration game is selected, render it
+  if (currentGame === 'concentration') {
+    return (
+      <div>
+        {/* Game Switcher */}
+        <div className="fixed top-4 right-4 z-50">
+          <button
+            onClick={() => setCurrentGame('prompt')}
+            className="bg-white shadow-lg border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm"
+          >
+            Switch to Prompt Game
+          </button>
+        </div>
+        <ConcentrationApp />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col p-5 pt-20 pb-64 lg:flex-row lg:gap-28 max-w-7xl mx-auto lg:pt-5 lg:pb-5">
       <div className="grow basis-0">
@@ -45,6 +65,16 @@ function App() {
               <img src="/convex.svg" width="28" height="28" alt="Convex logo" />
               Convex
             </a>
+          </div>
+          
+          {/* Game Switcher */}
+          <div className="mt-6">
+            <button
+              onClick={() => setCurrentGame('concentration')}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium"
+            >
+              🧠 Try New: Concentration Q&A Game
+            </button>
           </div>
         </header>
         {!gameId && (
