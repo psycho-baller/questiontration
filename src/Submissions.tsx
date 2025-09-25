@@ -5,7 +5,7 @@ export function Submissions({
   submitted,
   title,
 }: {
-  submitted: { handle: string; avatarUrl: string; me: boolean }[];
+  submitted: { handle: string; avatarUrl: string | null; me: boolean }[];
   title: string;
 }) {
   return (

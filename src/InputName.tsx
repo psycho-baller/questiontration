@@ -9,7 +9,7 @@ export function InputName() {
     <input
       className="bg-neutral-900 focus:outline-none"
       name="name"
-      defaultValue={profile.name}
+      defaultValue={profile.handle}
       type="text"
       onChange={(e) => setName({ name: e.target.value })}
       placeholder="Enter a name"
