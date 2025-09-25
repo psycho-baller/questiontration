@@ -1,6 +1,5 @@
 import { query } from "../_generated/server";
 import { v } from "convex/values";
-import { Doc, Id } from "../_generated/dataModel";
 
 export const roomState = query({
   args: {
