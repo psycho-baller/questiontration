@@ -146,13 +146,17 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
 
   const getCardContent = (card: typeof sortedCards[0]) => {
     if (card.state === 'faceDown') {
+      // Face down cards show the ANSWERS (what players see initially)
       return (
-        <div className="w-full h-full bg-gradient-to-br from-blue-600 to-purple-700 rounded-lg flex items-center justify-center shadow-lg">
-          <div className="text-white text-2xl font-bold">?</div>
+        <div className="w-full h-full bg-gradient-to-br from-blue-600 to-purple-700 rounded-lg flex items-center justify-center p-2 shadow-lg">
+          <div className="text-white text-sm font-medium text-center leading-tight">
+            {card.answerText || '?'}
+          </div>
         </div>
       );
     }
 
+    // Face up cards show the QUESTIONS (what players see when flipped)
     return (
       <div className={`w-full h-full rounded-lg flex flex-col items-center justify-center p-2 shadow-lg ${
         card.state === 'matched'
@@ -160,11 +164,11 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
           : 'bg-gradient-to-br from-yellow-400 to-orange-500'
       }`}>
         <div className="text-white text-sm font-medium text-center leading-tight">
-          {card.answerText}
+          {card.questionText || 'Question not found'}
         </div>
-        {card.state === 'matched' && card.questionText && (
+        {card.state === 'matched' && (
           <div className="text-white/80 text-xs text-center mt-1 italic">
-            Q: {card.questionText}
+            A: {card.answerText}
           </div>
         )}
       </div>
@@ -253,7 +257,7 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
               <div className="mt-6 text-center">
                 {isCurrentPlayer ? (
                   <div className="text-green-400 font-bold text-lg">
-                    Your turn! Click two cards to find a match.
+                    Your turn! Click answers to reveal their questions and find matches.
                   </div>
                 ) : (
                   <div className="text-blue-200">
@@ -314,9 +318,10 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 shadow-2xl border border-white/20">
               <h2 className="text-xl font-bold text-white mb-4">How to Play</h2>
               <div className="space-y-2 text-sm text-blue-200">
-                <p>• Click two cards to flip them</p>
-                <p>• Match answers to the same question</p>
-                <p>• Matched pairs stay face up</p>
+                <p>• You see answers on the board initially</p>
+                <p>• Click answers to reveal their questions</p>
+                <p>• Match two answers that belong to the same question</p>
+                <p>• Matched pairs stay revealed</p>
                 <p>• Most matches wins!</p>
                 <p>• Right-click to report inappropriate content</p>
               </div>
