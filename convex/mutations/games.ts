@@ -461,3 +461,116 @@ export const rematch = sessionMutation({
     return previousGame._id; // Return previous game ID for reference
   },
 });
+
+// Regular mutation version for calling from actions
+export const assembleBoardFromAction = mutation({
+  args: {
+    roomId: v.id("rooms"),
+    userId: v.id("users"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    // Get current game
+    const game = await ctx.db
+      .query("games")
+      .withIndex("by_room_id", (q) => q.eq("roomId", args.roomId))
+      .order("desc")
+      .first();
+
+    if (!game) {
+      throw new Error("No active game found");
+    }
+
+    // Verify user is host
+    const room = await ctx.db.get(args.roomId);
+    if (!room || room.hostUserId !== args.userId) {
+      throw new Error("Only the host can assemble the board");
+    }
+
+    if (game.status !== "collecting") {
+      throw new Error("Game must be in collecting phase to assemble board");
+    }
+
+    // Get approved questions with at least 2 answers
+    const questions = await ctx.db
+      .query("questions")
+      .withIndex("by_room_id", (q) => q.eq("roomId", args.roomId))
+      .collect();
+
+    const approvedQuestions = questions.filter(q => 
+      (game.settings.mode === "curated" || q.approved !== false)
+    );
+
+    const questionsWithAnswers = await Promise.all(
+      approvedQuestions.map(async (question) => {
+        const answers = await ctx.db
+          .query("answers")
+          .withIndex("by_question_id", (q) => q.eq("questionId", question._id))
+          .collect();
+        return { question, answers };
+      })
+    );
+
+    const validQuestions = questionsWithAnswers.filter(
+      ({ answers }) => answers.length >= 2
+    );
+
+    if (validQuestions.length < game.pairCount) {
+      throw new Error(`Need at least ${game.pairCount} questions with 2+ answers. Currently have ${validQuestions.length}.`);
+    }
+
+    // Select questions and create cards
+    const selectedQuestions = shuffleArray(validQuestions).slice(0, game.pairCount);
+    const cards: Array<{ questionId: Id<"questions">; answerId: Id<"answers">; position: number }> = [];
+
+    selectedQuestions.forEach((questionData, questionIndex) => {
+      const selectedAnswers = shuffleArray(questionData.answers).slice(0, 2);
+      selectedAnswers.forEach((answer, answerIndex) => {
+        cards.push({
+          questionId: questionData.question._id,
+          answerId: answer._id,
+          position: questionIndex * 2 + answerIndex,
+        });
+      });
+    });
+
+    // Shuffle card positions
+    const shuffledCards = shuffleArray(cards);
+    shuffledCards.forEach((card, index) => {
+      card.position = index;
+    });
+
+    // Insert cards into database
+    for (const card of shuffledCards) {
+      await ctx.db.insert("cards", {
+        gameId: game._id,
+        questionId: card.questionId,
+        answerId: card.answerId,
+        position: card.position,
+        state: "faceDown" as const,
+      });
+    }
+
+    // Update game status to ready
+    await ctx.db.patch(game._id, {
+      status: "ready" as const,
+    });
+
+    // Update room status
+    await ctx.db.patch(args.roomId, {
+      status: "playing" as const,
+    });
+
+    // Log audit event
+    await ctx.db.insert("audit", {
+      type: "board_assembled",
+      gameId: game._id,
+      roomId: args.roomId,
+      userId: args.userId,
+      payload: { questionCount: selectedQuestions.length, cardCount: cards.length },
+      ts: Date.now(),
+    });
+
+    return null;
+  },
+});
