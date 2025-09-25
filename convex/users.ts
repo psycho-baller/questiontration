@@ -63,14 +63,18 @@ async function claimSessionUser(
 }
 
 /**
- * Gets the name from the current session.
+ * Gets the profile from the current session.
  */
 export const getMyProfile = sessionQuery({
   args: {},
   handler: async (ctx) => {
     if (!ctx.session) return null;
-    const { handle, avatarUrl } = await getUserById(ctx.db, ctx.session.userId);
-    return { handle, avatarUrl };
+    const user = await getUserById(ctx.db, ctx.session.userId);
+    return { 
+      _id: user._id,
+      handle: user.handle, 
+      avatarUrl: user.avatarUrl 
+    };
   },
 });
 
