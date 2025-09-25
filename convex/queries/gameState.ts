@@ -91,14 +91,12 @@ export const gameState = query({
         let answerText: string | undefined;
         let questionText: string | undefined;
 
-        // Only include answer text if card is face up or matched
-        if (card.state === "faceUp" || card.state === "matched") {
-          const answer = await ctx.db.get(card.answerId);
-          answerText = answer?.text;
-        }
+        // Always include answer text (shown on face down cards initially)
+        const answer = await ctx.db.get(card.answerId);
+        answerText = answer?.text;
 
-        // Only include question text if card is matched
-        if (card.state === "matched") {
+        // Include question text if card is face up or matched (revealed when flipped)
+        if (card.state === "faceUp" || card.state === "matched") {
           const question = await ctx.db.get(card.questionId);
           questionText = question?.text;
         }
