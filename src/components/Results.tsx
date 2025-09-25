@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
+import { useSessionMutation } from '../hooks/useServerSession';
 
 interface ResultsProps {
   roomState: {
@@ -54,8 +55,9 @@ export default function Results({ roomState, gameState, roomId, onLeaveRoom }: R
   const [isRematchLoading, setIsRematchLoading] = useState(false);
   const [reuseQuestions, setReuseQuestions] = useState(true);
 
-  const rematch = useMutation(api.rematch);
-  const leaveRoom = useMutation(api.leaveRoom);
+  const rematch = useSessionMutation(api.mutations.games.rematch);
+  const leaveRoom = useSessionMutation(api.mutations.rooms.leaveRoom);
+  const resetGame = useSessionMutation(api.mutations.games.resetGameProgress);
 
   const isHost = roomState.members.find(m => m.userId === roomState.host._id)?.role === 'host';
 
@@ -104,6 +106,23 @@ export default function Results({ roomState, gameState, roomId, onLeaveRoom }: R
     } catch (error) {
       console.error('Failed to leave room:', error);
       onLeaveRoom();
+    }
+  };
+
+  const handleResetGame = async () => {
+    if (!isHost) return;
+    
+    const confirmed = window.confirm(
+      'Are you sure you want to reset the board? This will clear all progress but keep the same questions and answers, allowing you to replay immediately.'
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      await resetGame({ roomId });
+    } catch (error) {
+      console.error('Failed to reset game:', error);
+      alert('Failed to reset game. Please try again.');
     }
   };
 
@@ -194,6 +213,13 @@ export default function Results({ roomState, gameState, roomId, onLeaveRoom }: R
 
                 {isHost && (
                   <>
+                    <button
+                      onClick={handleResetGame}
+                      className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-lg font-bold transition-colors"
+                    >
+                      Reset Board Only
+                    </button>
+
                     <div className="flex items-center gap-2 text-white">
                       <input
                         type="checkbox"
