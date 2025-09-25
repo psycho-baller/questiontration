@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
-import { useSessionMutation } from '../hooks/useServerSession';
+import { useSessionMutation, useSessionQuery } from '../hooks/useServerSession';
 
 interface CollectPhaseProps {
   roomState: {
@@ -32,11 +32,12 @@ interface CollectPhaseProps {
 export default function CollectPhase({ roomState, roomId, onLeaveRoom }: CollectPhaseProps) {
   const [newQuestion, setNewQuestion] = useState('');
   const [answerText, setAnswerText] = useState('');
-  const [selectedQuestionId, setSelectedQuestionId] = useState<string>('');
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(120); // 2 minutes default
 
   const questionPool = useQuery(api.questionPool.questionPool, { roomId });
   const gameState = useQuery(api.gameState.gameState, { roomId });
+  const myProfile = useSessionQuery(api.users.getMyProfile);
 
   const submitQuestion = useSessionMutation(api.mutations.questions.submitQuestion);
   const submitAnswer = useSessionMutation(api.mutations.questions.submitAnswer);
@@ -53,6 +54,26 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
       setTimeLeft(gameState.game.settings.collectSeconds);
     }
   }, [gameState?.game?.settings?.collectSeconds]);
+
+  // Auto-load existing answer when changing questions
+  useEffect(() => {
+    if (!questionPool || !myProfile) return;
+    
+    const availableQuestions = questionPool.questions.filter(q => 
+      gameMode === 'curated' || q.approved !== false
+    );
+    const currentQuestion = availableQuestions[currentQuestionIndex];
+    
+    if (currentQuestion) {
+      const currentUser = roomState.members.find(m => m.user._id === myProfile._id);
+      if (currentUser) {
+        const existingAnswer = currentQuestion.answers.find(answer => 
+          answer.creatorHandle === currentUser.user.handle
+        );
+        setAnswerText(existingAnswer?.text || '');
+      }
+    }
+  }, [currentQuestionIndex, questionPool, myProfile, gameMode, roomState.members]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -80,16 +101,27 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
 
   const handleSubmitAnswer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!answerText.trim() || !selectedQuestionId) return;
+    if (!answerText.trim()) return;
+
+    const availableQuestions = questionPool?.questions.filter(q => 
+      gameMode === 'curated' || q.approved !== false
+    ) || [];
+    
+    const currentQuestion = availableQuestions[currentQuestionIndex];
+    if (!currentQuestion) return;
 
     try {
       await submitAnswer({
         roomId,
-        questionId: selectedQuestionId as Id<"questions">,
+        questionId: currentQuestion._id,
         text: answerText.trim(),
       });
       setAnswerText('');
-      setSelectedQuestionId('');
+      
+      // Move to next question if available
+      if (currentQuestionIndex < availableQuestions.length - 1) {
+        setCurrentQuestionIndex(currentQuestionIndex + 1);
+      }
     } catch (error) {
       console.error('Failed to submit answer:', error);
       alert('Failed to submit answer. Please try again.');
@@ -252,47 +284,122 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
             )}
 
             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 shadow-2xl border border-white/20">
-              <h2 className="text-2xl font-bold text-white mb-4">Submit an Answer</h2>
-              <form onSubmit={handleSubmitAnswer} className="space-y-4">
-                <div>
-                  <select
-                    value={selectedQuestionId}
-                    onChange={(e) => setSelectedQuestionId(e.target.value)}
-                    className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-3 text-white"
-                    required
-                  >
-                    <option value="">Select a question to answer...</option>
-                    {questionPool.questions
-                      .filter(q => gameMode === 'curated' || q.approved !== false)
-                      .map((question) => (
-                        <option key={question._id} value={question._id}>
-                          {question.text} ({question.answerCount} answers)
-                        </option>
-                      ))}
-                  </select>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold text-white">Answer Questions</h2>
+                <div className="text-blue-200 text-sm">
+                  {(() => {
+                    const availableQuestions = questionPool.questions.filter(q => 
+                      gameMode === 'curated' || q.approved !== false
+                    );
+                    const currentUser = myProfile ? roomState.members.find(m => m.user._id === myProfile._id) : null;
+                    const answeredCount = currentUser ? availableQuestions.filter(q => 
+                      q.answers.some(answer => answer.creatorHandle === currentUser.user.handle)
+                    ).length : 0;
+                    
+                    return (
+                      <div className="text-right">
+                        <div>{currentQuestionIndex + 1} of {availableQuestions.length}</div>
+                        <div className="text-xs text-green-300">{answeredCount} answered</div>
+                      </div>
+                    );
+                  })()}
                 </div>
-                <div>
-                  <textarea
-                    value={answerText}
-                    onChange={(e) => setAnswerText(e.target.value)}
-                    placeholder="Enter your answer (5-200 characters)..."
-                    className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-3 text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
-                    rows={2}
-                    minLength={5}
-                    maxLength={200}
-                  />
-                  <div className="text-right text-sm text-blue-200 mt-1">
-                    {answerText.length}/200
+              </div>
+
+              {(() => {
+                const availableQuestions = questionPool.questions.filter(q => 
+                  gameMode === 'curated' || q.approved !== false
+                );
+                const currentQuestion = availableQuestions[currentQuestionIndex];
+                
+                if (!currentQuestion) {
+                  return (
+                    <div className="text-center py-8">
+                      <div className="text-white text-lg mb-2">No questions available yet</div>
+                      <div className="text-blue-200">Wait for questions to be submitted and approved</div>
+                    </div>
+                  );
+                }
+
+                // Check if user has already answered this question
+                const currentUser = myProfile ? roomState.members.find(m => m.user._id === myProfile._id) : null;
+                const userHasAnswered = currentUser ? currentQuestion.answers.some(answer => 
+                  answer.creatorHandle === currentUser.user.handle
+                ) : false;
+
+                return (
+                  <div className="space-y-4">
+                    {/* Question Display */}
+                    <div className="bg-white/10 rounded-lg p-4 border border-white/20">
+                      <div className="text-white font-medium text-lg mb-2">
+                        {currentQuestion.text}
+                      </div>
+                      <div className="text-blue-200 text-sm">
+                        by {currentQuestion.creatorHandle} • {currentQuestion.answerCount} answers
+                      </div>
+                    </div>
+
+                    {/* Answer Form */}
+                    <form onSubmit={handleSubmitAnswer} className="space-y-4">
+                      <div>
+                        <textarea
+                          value={answerText}
+                          onChange={(e) => setAnswerText(e.target.value)}
+                          placeholder="Enter your answer (5-200 characters)..."
+                          className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-3 text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                          rows={3}
+                          minLength={5}
+                          maxLength={200}
+                        />
+                        <div className="text-right text-sm text-blue-200 mt-1">
+                          {answerText.length}/200
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))}
+                          disabled={currentQuestionIndex === 0}
+                          className="px-4 py-2 bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:opacity-50 text-white rounded-lg transition-colors"
+                        >
+                          Previous
+                        </button>
+                        
+                        <button
+                          type="submit"
+                          disabled={answerText.length < 5}
+                          className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white py-3 rounded-lg font-bold transition-colors"
+                        >
+                          {userHasAnswered ? 'Update Answer' : 'Submit Answer'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAnswerText('');
+                            setCurrentQuestionIndex(Math.min(availableQuestions.length - 1, currentQuestionIndex + 1));
+                          }}
+                          disabled={currentQuestionIndex >= availableQuestions.length - 1}
+                          className="px-4 py-2 bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:opacity-50 text-white rounded-lg transition-colors"
+                        >
+                          Skip
+                        </button>
+                      </div>
+                    </form>
+
+                    {/* Progress Bar */}
+                    <div className="w-full bg-white/20 rounded-full h-2">
+                      <div
+                        className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                        style={{
+                          width: `${((currentQuestionIndex + 1) / availableQuestions.length) * 100}%`
+                        }}
+                      />
+                    </div>
                   </div>
-                </div>
-                <button
-                  type="submit"
-                  disabled={!selectedQuestionId || answerText.length < 5}
-                  className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white py-3 rounded-lg font-bold transition-colors"
-                >
-                  Submit Answer
-                </button>
-              </form>
+                );
+              })()}
             </div>
           </div>
 
