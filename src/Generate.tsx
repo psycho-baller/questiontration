@@ -31,10 +31,10 @@ export function Generate({
       <div className="text-2xl my-4">Players</div>
       <ul>
         {game.players.map((player) => (
-          <li key={player.pictureUrl} className="flex gap-2 items-center mb-2">
+          <li key={player.avatarUrl} className="flex gap-2 items-center mb-2">
             {player.me ? "👉" : player.submitted && "✅"}
-            <ProfilePicture url={player.pictureUrl} me={player.me} />
-            {player.me ? <InputName /> : player.name}
+            <ProfilePicture url={player.avatarUrl} me={player.me} />
+            {player.me ? <InputName /> : player.handle}
           </li>
         ))}
       </ul>

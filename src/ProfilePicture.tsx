@@ -6,7 +6,7 @@ export function ProfilePicture({
   me,
   small,
 }: {
-  url: string;
+  url: string | null;
   me?: boolean;
   small?: boolean;
 }) {
@@ -15,7 +15,7 @@ export function ProfilePicture({
   return (
     <>
       <div className="relative group">
-        <img src={url} width={size} height={size} className="rounded" />
+        <img src={url || ""} width={size} height={size} className="rounded" />
         {me && (
           <>
             <ProfilePicker open={pickerOpen} setOpen={setPickerOpen} />

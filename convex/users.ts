@@ -69,8 +69,8 @@ export const getMyProfile = sessionQuery({
   args: {},
   handler: async (ctx) => {
     if (!ctx.session) return null;
-    const { name, pictureUrl } = await getUserById(ctx.db, ctx.session.userId);
-    return { name, pictureUrl };
+    const { handle, avatarUrl } = await getUserById(ctx.db, ctx.session.userId);
+    return { handle, avatarUrl };
   },
 });
 
@@ -82,7 +82,7 @@ export const setName = sessionMutation({
   handler: async (ctx, { name }) => {
     const user = await getUserById(ctx.db, ctx.session.userId);
     if (name.length > 100) throw new Error("Name too long");
-    await ctx.db.patch(user._id, { name });
+    await ctx.db.patch(user._id, { handle: name });
   },
 });
 
@@ -96,7 +96,7 @@ export const setPicture = sessionMutation({
       submission.result.imageStorageId
     );
     if (!pictureUrl) throw new Error("Picture is missing");
-    await ctx.db.patch(ctx.session.userId, { pictureUrl });
+    await ctx.db.patch(ctx.session.userId, { avatarUrl: pictureUrl });
   },
 });
 
@@ -122,17 +122,16 @@ export const getOrCreateUser = async (
   const existing = await getUser(db, identity.tokenIdentifier);
   if (existing) return existing._id;
   return await db.insert("users", {
-    name: identity.givenName ?? identity.name!,
-    pictureUrl: identity.pictureUrl ?? createGravatarUrl(identity.email!),
+    handle: identity.givenName ?? identity.name!,
+    avatarUrl: identity.pictureUrl ?? createGravatarUrl(identity.email!),
     tokenIdentifier: identity.tokenIdentifier,
   });
 };
 
 export const createAnonymousUser = (db: DatabaseWriter) => {
   return db.insert("users", {
-    // TODO: make this name fun & random
-    name: "",
-    pictureUrl: createGravatarUrl(randomSlug()),
+    handle: generateAnonymousHandle(),
+    avatarUrl: createGravatarUrl(randomSlug()),
   });
 };
 
@@ -148,12 +147,69 @@ export const loggedOut = sessionMutation({
   },
 });
 
-function createGravatarUrl(key: string): string {
+export function createGravatarUrl(key: string): string {
   key = key.trim().toLocaleLowerCase();
   const hash = md5(key);
   // See https://en.gravatar.com/site/implement/images/ for details.
   // ?d=monsterid uses a default of a monster image when the hash isn't found.
   return `https://www.gravatar.com/avatar/${hash}?d=monsterid`;
+}
+
+const anonymousAdjectives = [
+  "Sneaky",
+  "Wobbly",
+  "Zippy",
+  "Spicy",
+  "Gleeful",
+  "Fizzy",
+  "Cheeky",
+  "Quirky",
+  "Nimble",
+  "Bubbly",
+  "Peppy",
+  "Snazzy",
+  "Crunchy",
+  "Glitchy",
+  "Fuzzy",
+  "Spry",
+  "Zany",
+  "Jazzy",
+  "Plucky",
+  "Sassy",
+];
+
+const anonymousNouns = [
+  "Pickle",
+  "Yeti",
+  "Wombat",
+  "Galaxy",
+  "Raccoon",
+  "Muffin",
+  "Parrot",
+  "Taco",
+  "Otter",
+  "Noodle",
+  "Lemur",
+  "Pixel",
+  "Walrus",
+  "Dragon",
+  "Falcon",
+  "Jelly",
+  "Meteor",
+  "Sprout",
+  "Potion",
+  "Rocket",
+];
+
+function generateAnonymousHandle(): string {
+  const adjective = anonymousAdjectives[randomIndex(anonymousAdjectives.length)];
+  const noun = anonymousNouns[randomIndex(anonymousNouns.length)];
+  const suffix = randomSlug().replace(/[^a-zA-Z0-9]/g, "").slice(0, 4);
+  return `${adjective}${noun}${suffix || randomIndex(900) + 100}`;
+}
+
+function randomIndex(max: number): number {
+  return Math.floor(Math.random() * max);
 }
 
 /**

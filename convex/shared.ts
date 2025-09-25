@@ -12,24 +12,24 @@ export type ClientGameState = {
   hosting: boolean;
   players: {
     me: boolean;
-    name: string;
-    pictureUrl: string;
+    handle: string;
+    avatarUrl: string;
     submitted: boolean;
     score: number;
     likes: number;
   }[];
   playing: boolean;
   state:
-    | {
-        stage: "lobby" | "generate";
-      }
-    | {
-        stage: "rounds";
-        roundId: Id<"rounds">;
-      }
-    | {
-        stage: "recap";
-      };
+  | {
+    stage: "lobby" | "generate";
+  }
+  | {
+    stage: "rounds";
+    roundId: Id<"rounds">;
+  }
+  | {
+    stage: "recap";
+  };
   nextGameId: null | Id<"games">;
 };
 
@@ -41,8 +41,8 @@ export type LabelState = {
   stageEnd: number;
   submitted: {
     me: boolean;
-    name: string;
-    pictureUrl: string;
+    handle: string;
+    avatarUrl: string | null;
   }[];
 };
 
@@ -56,8 +56,8 @@ export type GuessState = {
   myGuess?: string;
   submitted: {
     me: boolean;
-    name: string;
-    pictureUrl: string;
+    handle: string;
+    avatarUrl: string | null;
   }[];
   options: string[];
 };
@@ -72,8 +72,8 @@ export type RevealState = {
   users: {
     userId: Id<"users">;
     me: boolean;
-    name: string;
-    pictureUrl: string;
+    handle: string;
+    avatarUrl: string | null;
   }[];
   results: {
     authorId: Id<"users">;

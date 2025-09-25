@@ -52,8 +52,8 @@ export const getRound = sessionQuery({
       const user = (await ctx.db.get(userId))!;
       return {
         me: user._id === ctx.session?.userId,
-        name: user.name,
-        pictureUrl: user.pictureUrl,
+        handle: user.handle,
+        avatarUrl: user.avatarUrl || null,
       };
     };
 

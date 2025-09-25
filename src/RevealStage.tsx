@@ -33,8 +33,8 @@ export function RevealStage({ round }: { round: RevealState }) {
               </label>
               <div className="flex items-center gap-1 pl-2 text-sm">
                 by
-                <ProfilePicture url={user!.pictureUrl} me={user!.me} small />
-                {user!.name}
+                <ProfilePicture url={user!.avatarUrl} me={user!.me} small />
+                {user!.handle}
                 {!!scoreDeltas.get(option.authorId) && (
                   <span className="rounded-full bg-orange-400 px-2 text-neutral-black ">
                     +{scoreDeltas.get(option.authorId)}
@@ -57,11 +57,11 @@ export function RevealStage({ round }: { round: RevealState }) {
                     {option.votes.map((userId) => (
                       <li key={userId} className="flex gap-1 py-1">
                         <ProfilePicture
-                          url={users.get(userId)!.pictureUrl}
+                          url={users.get(userId)!.avatarUrl}
                           me={users.get(userId)!.me}
                           small
                         />
-                        {users.get(userId)!.name || "(Anonymous)"}
+                        {users.get(userId)!.handle || "(Anonymous)"}
 
                         {scoreDeltas.has(userId) ? (
                           <span className="rounded-full bg-purple-400 px-2 text-neutral-black">

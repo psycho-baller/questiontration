@@ -45,7 +45,7 @@ export default function ProfilePicker({
               <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-sm sm:p-6">
                 <div className="flex justify-around">
                   {/* important to set me to false so there isn't infinite recursion! */}
-                  {profile && <ProfilePicture url={profile?.pictureUrl} />}
+                  {profile && <ProfilePicture url={profile.avatarUrl || null} />}
                 </div>
                 <CreateImage
                   title="Profile Picture"
