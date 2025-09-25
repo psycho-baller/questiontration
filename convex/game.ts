@@ -1,7 +1,7 @@
 import { api } from "./_generated/api";
 import { calculateScoreDeltas, newRound, startRound } from "./round";
 import { ClientGameState, MaxPlayers } from "./shared";
-import { getUserById } from "./users";
+import { getUserById, createGravatarUrl } from "./users";
 import { Doc, Id } from "./_generated/dataModel";
 import { randomSlug } from "./lib/randomSlug";
 import { v } from "convex/values";
@@ -20,6 +20,22 @@ export const create = sessionMutation({
       roundIds: [],
       slug: randomSlug(),
       state: { stage: "lobby" },
+      status: "collecting",
+      roomId: "1234" as Id<"rooms">,
+      boardSize: 4,
+      pairCount: 8,
+      turnIndex: 0,
+      currentPlayerId: ctx.session.userId,
+      startedAt: Date.now(),
+      settings: {
+        boardSize: 4,
+        pairCount: 8,
+        mode: "curated",
+        extraTurnOnMatch: false,
+        turnSeconds: 30,
+        collectSeconds: 120,
+        contentRating: "PG",
+      },
     });
     ctx.session.gameIds.push(gameId);
     await ctx.db.patch(ctx.session._id, { gameIds: ctx.session.gameIds });
@@ -41,6 +57,14 @@ export const playAgain = sessionMutation({
       roundIds: [],
       slug: oldGame.slug,
       state: { stage: "lobby" },
+      status: "collecting",
+      roomId: oldGame.roomId,
+      boardSize: oldGame.boardSize,
+      pairCount: oldGame.pairCount,
+      turnIndex: 0,
+      currentPlayerId: ctx.session.userId,
+      startedAt: Date.now(),
+      settings: oldGame.settings,
     });
     await ctx.db.patch(oldGame._id, { nextGameId: gameId });
     ctx.session.gameIds.push(gameId);
@@ -75,11 +99,11 @@ export const get = sessionQuery({
     const roundPlayerIds = rounds.map((round) => round.authorId);
     const players = await asyncMap(game.playerIds, async (playerId) => {
       const player = (await getUserById(ctx.db, playerId))!;
-      const { name, pictureUrl } = player;
+      const { handle, avatarUrl } = player;
       return {
         me: player._id === ctx.session?.userId,
-        name,
-        pictureUrl,
+        handle,
+        avatarUrl: avatarUrl ?? createGravatarUrl(player._id),
         score: playerScore[player._id] ?? 0,
         likes: playerLikes[player._id] ?? 0,
         submitted: !!roundPlayerIds.find((id) => id === playerId),

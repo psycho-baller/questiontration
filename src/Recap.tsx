@@ -39,17 +39,17 @@ export function Recap({ game }: { game: ClientGameState }) {
                   .slice()
                   .sort((a, b) => b.score - a.score)
                   .map((player, index) => (
-                    <tr key={player.pictureUrl}>
+                    <tr key={player.avatarUrl}>
                       <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-sm font-medium sm:pr-0">
                         #{index + 1}
-                        <span className="sr-only">, {player.name}</span>
+                        <span className="sr-only">, {player.handle}</span>
                       </td>
                       <td className="flex items-center whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-white sm:pl-0">
                         <ProfilePicture
-                          url={player.pictureUrl}
+                          url={player.avatarUrl}
                           me={player.me}
                         />
-                        <span className="pl-2">{player.name}</span>
+                        <span className="pl-2">{player.handle}</span>
                       </td>
                       <td className="whitespace-nowrap py-4 px-3 text-sm text-gray-300">
                         {player.score}

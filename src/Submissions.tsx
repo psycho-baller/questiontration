@@ -5,7 +5,7 @@ export function Submissions({
   submitted,
   title,
 }: {
-  submitted: { name: string; pictureUrl: string; me: boolean }[];
+  submitted: { handle: string; avatarUrl: string; me: boolean }[];
   title: string;
 }) {
   return (
@@ -13,11 +13,11 @@ export function Submissions({
       <legend className="text-2xl mb-2">{title}</legend>
       <ul>
         {submitted.map((player) => (
-          <li key={player.pictureUrl} className="py-1 flex items-center gap-3">
+          <li key={player.avatarUrl} className="py-1 flex items-center gap-3">
             {player.me ? "👉" : "✅"}
-            <ProfilePicture url={player.pictureUrl} />
+            <ProfilePicture url={player.avatarUrl} />
             <span className="text-lg">
-              {player.me ? <InputName /> : player.name}
+              {player.me ? <InputName /> : player.handle}
             </span>
           </li>
         ))}

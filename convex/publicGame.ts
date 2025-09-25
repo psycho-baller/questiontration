@@ -21,7 +21,7 @@ export const progress = myInternalMutation({
   handler: async (ctx, { fromStage }) => {
     const publicGame = await ctx.db.query("publicGame").unique();
     if (!publicGame) throw new Error("No public game");
-    const currentRound = await ctx.db.get(publicGame.roundId);
+    const currentRound = publicGame.roundId ? await ctx.db.get(publicGame.roundId) : null;
     if (!currentRound) throw new Error("Round not found");
 
     if (currentRound.stageEnd! > Date.now()) {

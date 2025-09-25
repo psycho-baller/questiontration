@@ -19,12 +19,12 @@ export function Lobby({ game }: { game: ClientGameState }) {
         <ol>
           {game.players.map((player) => (
             <li
-              key={player.pictureUrl}
+              key={player.avatarUrl}
               className="flex gap-2 items-center mb-2"
             >
               {player.me && "👉"}
-              <ProfilePicture url={player.pictureUrl} me={player.me} />
-              {player.me ? <InputName /> : player.name}
+              <ProfilePicture url={player.avatarUrl} me={player.me} />
+              {player.me ? <InputName /> : player.handle}
             </li>
           ))}
           {!game.playing && game.players.length < MaxPlayers && (
