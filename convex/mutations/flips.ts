@@ -1,8 +1,8 @@
-import { mutation } from "../_generated/server";
+import { sessionMutation } from "../lib/myFunctions";
 import { v } from "convex/values";
 import { Doc, Id } from "../_generated/dataModel";
 
-export const flipCard = mutation({
+export const flipCard = sessionMutation({
   args: {
     roomId: v.id("rooms"),
     cardId: v.id("cards"),
@@ -13,20 +13,6 @@ export const flipCard = mutation({
     turnId: v.id("turns"),
   }),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Must be authenticated to flip cards");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
     // Get current game
     const game = await ctx.db
       .query("games")
@@ -38,12 +24,12 @@ export const flipCard = mutation({
       throw new Error("No active game found");
     }
 
-    if (game.status !== "active") {
-      throw new Error("Game is not active");
-    }
+    // if (game.status !== "active") {
+    //   throw new Error("Game is not active");
+    // }
 
     // Verify it's the current player's turn
-    if (game.currentPlayerId !== user._id) {
+    if (game.currentPlayerId !== ctx.session.userId) {
       throw new Error("It's not your turn");
     }
 
@@ -68,7 +54,7 @@ export const flipCard = mutation({
       // Create new turn
       const turnId = await ctx.db.insert("turns", {
         gameId: game._id,
-        playerId: user._id,
+        playerId: ctx.session.userId,
         picks: [],
         resolved: false,
         correct: false,
@@ -79,7 +65,7 @@ export const flipCard = mutation({
     }
 
     // Verify turn belongs to current player
-    if (currentTurn.playerId !== user._id) {
+    if (currentTurn.playerId !== ctx.session.userId) {
       throw new Error("Turn belongs to different player");
     }
 
@@ -109,7 +95,7 @@ export const flipCard = mutation({
       type: "card_flipped",
       gameId: game._id,
       roomId: args.roomId,
-      userId: user._id,
+      userId: ctx.session.userId,
       payload: { cardId: args.cardId, position: card.position, turnId: currentTurn._id },
       ts: Date.now(),
     });
@@ -302,7 +288,7 @@ async function advanceToNextPlayer(ctx: any, game: Doc<"games">, roomId: Id<"roo
   });
 }
 
-export const resolveTurnManual = mutation({
+export const resolveTurnManual = sessionMutation({
   args: {
     roomId: v.id("rooms"),
   },

@@ -1,8 +1,8 @@
-import { mutation } from "../_generated/server";
+import { sessionMutation } from "../lib/myFunctions";
 import { v } from "convex/values";
 import { Doc, Id } from "../_generated/dataModel";
 
-export const reportContent = mutation({
+export const reportContent = sessionMutation({
   args: {
     roomId: v.id("rooms"),
     targetType: v.union(v.literal("question"), v.literal("answer")),
@@ -11,25 +11,11 @@ export const reportContent = mutation({
   },
   returns: v.id("reports"),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Must be authenticated to report content");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
     // Check if user is a member of the room
     const membership = await ctx.db
       .query("memberships")
       .withIndex("by_room_and_user", (q) =>
-        q.eq("roomId", args.roomId).eq("userId", user._id)
+        q.eq("roomId", args.roomId).eq("userId", ctx.session.userId)
       )
       .unique();
 
@@ -62,7 +48,7 @@ export const reportContent = mutation({
       .withIndex("by_target", (q) =>
         q.eq("targetType", args.targetType).eq("targetId", args.targetId)
       )
-      .filter((q) => q.eq(q.field("reporterUserId"), user._id))
+      .filter((q) => q.eq(q.field("reporterUserId"), ctx.session.userId))
       .first();
 
     if (existingReport) {
@@ -72,7 +58,7 @@ export const reportContent = mutation({
     // Create the report
     const reportId = await ctx.db.insert("reports", {
       roomId: args.roomId,
-      reporterUserId: user._id,
+      reporterUserId: ctx.session.userId,
       targetType: args.targetType,
       targetId: args.targetId,
       reason: args.reason,
@@ -90,7 +76,7 @@ export const reportContent = mutation({
       type: "content_reported",
       gameId: game?._id,
       roomId: args.roomId,
-      userId: user._id,
+      userId: ctx.session.userId,
       payload: {
         reportId,
         targetType: args.targetType,
@@ -177,7 +163,7 @@ async function autoModerateContent(
   }
 }
 
-export const removeReportedContent = mutation({
+export const removeReportedContent = sessionMutation({
   args: {
     roomId: v.id("rooms"),
     targetType: v.union(v.literal("question"), v.literal("answer")),
@@ -185,23 +171,9 @@ export const removeReportedContent = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Must be authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
     // Verify user is host
     const room = await ctx.db.get(args.roomId);
-    if (!room || room.hostUserId !== user._id) {
+    if (!room || room.hostUserId !== ctx.session.userId) {
       throw new Error("Only the host can remove reported content");
     }
 
@@ -241,6 +213,30 @@ export const removeReportedContent = mutation({
       await ctx.db.delete(report._id);
     }
 
+    // Remove the content
+    // if (args.targetType === "question") {
+    //   const question = await ctx.db.get(args.targetId as Id<"questions">);
+    //   if (question && question.roomId === args.roomId) {
+    //     // Remove associated answers first
+    //     const answers = await ctx.db
+    //       .query("answers")
+    //       .withIndex("by_question_id", (q) => q.eq("questionId", question._id))
+    //       .collect();
+
+    //     for (const answer of answers) {
+    //       await ctx.db.delete(answer._id);
+    //     }
+
+    //     // Remove question
+    //     await ctx.db.delete(question._id);
+    //   }
+    // } else if (args.targetType === "answer") {
+    //   const answer = await ctx.db.get(args.targetId as Id<"answers">);
+    //   if (answer && answer.roomId === args.roomId) {
+    //     await ctx.db.delete(answer._id);
+    //   }
+    // }
+
     // Get current game for audit log
     const game = await ctx.db
       .query("games")
@@ -253,7 +249,7 @@ export const removeReportedContent = mutation({
       type: "reported_content_removed",
       gameId: game?._id,
       roomId: args.roomId,
-      userId: user._id,
+      userId: ctx.session.userId,
       payload: {
         targetType: args.targetType,
         targetId: args.targetId,
@@ -266,7 +262,7 @@ export const removeReportedContent = mutation({
   },
 });
 
-export const dismissReports = mutation({
+export const dismissReports = sessionMutation({
   args: {
     roomId: v.id("rooms"),
     targetType: v.union(v.literal("question"), v.literal("answer")),
@@ -274,23 +270,9 @@ export const dismissReports = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Must be authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
     // Verify user is host
     const room = await ctx.db.get(args.roomId);
-    if (!room || room.hostUserId !== user._id) {
+    if (!room || room.hostUserId !== ctx.session.userId) {
       throw new Error("Only the host can dismiss reports");
     }
 
@@ -318,7 +300,7 @@ export const dismissReports = mutation({
       type: "reports_dismissed",
       gameId: game?._id,
       roomId: args.roomId,
-      userId: user._id,
+      userId: ctx.session.userId,
       payload: {
         targetType: args.targetType,
         targetId: args.targetId,
@@ -331,7 +313,7 @@ export const dismissReports = mutation({
   },
 });
 
-export const getReports = mutation({
+export const getReports = sessionMutation({
   args: {
     roomId: v.id("rooms"),
   },
@@ -346,23 +328,10 @@ export const getReports = mutation({
     _creationTime: v.number(),
   })),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Must be authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
 
     // Verify user is host
     const room = await ctx.db.get(args.roomId);
-    if (!room || room.hostUserId !== user._id) {
+    if (!room || room.hostUserId !== ctx.session.userId) {
       throw new Error("Only the host can view reports");
     }
 
