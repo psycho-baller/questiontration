@@ -36,7 +36,7 @@ interface LobbyProps {
 }
 
 export default function Lobby({ roomState, onLeaveRoom }: LobbyProps) {
-  const [gameMode, setGameMode] = useState<'curated' | 'player'>('player');
+  const [gameMode, setGameMode] = useState<'curated' | 'player'>('curated');
   const [maxPlayers, setMaxPlayers] = useState(8);
   const [turnSeconds, setTurnSeconds] = useState(20);
   const [collectSeconds, setCollectSeconds] = useState(120);
@@ -234,8 +234,8 @@ export default function Lobby({ roomState, onLeaveRoom }: LobbyProps) {
                       onChange={(e) => setGameMode(e.target.value as 'curated' | 'player')}
                       className="w-full bg-white/20 border border-white/30 rounded-lg px-3 py-2 text-white"
                     >
-                      <option value="player">Player Questions</option>
                       <option value="curated">Curated Questions</option>
+                      <option value="player">Player Questions</option>
                     </select>
                     <p className="text-sm text-blue-200 mt-1">
                       {gameMode === 'player'
