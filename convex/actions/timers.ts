@@ -2,6 +2,7 @@
 import { action } from "../_generated/server";
 import { v } from "convex/values";
 import { api } from "../_generated/api";
+import { Id } from "../_generated/dataModel";
 
 
 export const scheduleFlipBack = action({
@@ -32,6 +33,7 @@ export const executeFlipBack = action({
     // Call the mutation to resolve the turn and flip cards back if needed
     await ctx.runMutation(api.mutations.flips.resolveTurnManual, {
       roomId: args.roomId,
+      sessionId: (await ctx.auth.getUserIdentity())?.tokenIdentifier as Id<"sessions">,
     });
 
     return null;
@@ -83,11 +85,13 @@ export const executeTurnTimeout = action({
           // Player only flipped one card - flip it back and advance turn
           await ctx.runMutation(api.mutations.flips.resolveTurnManual, {
             roomId: args.roomId,
+            sessionId: (await ctx.auth.getUserIdentity())?.tokenIdentifier as Id<"sessions">,
           });
         } else if (gameState.currentTurn.picks.length === 2) {
           // Player flipped two cards but turn wasn't resolved - resolve it now
           await ctx.runMutation(api.mutations.flips.resolveTurnManual, {
             roomId: args.roomId,
+            sessionId: (await ctx.auth.getUserIdentity())?.tokenIdentifier as Id<"sessions">,
           });
         }
       }
@@ -139,6 +143,7 @@ export const executeCollectionTimeout = action({
       // Automatically assemble board if we have enough questions
       await ctx.runMutation(api.mutations.games.assembleBoard, {
         roomId: args.roomId,
+        sessionId: (await ctx.auth.getUserIdentity())?.tokenIdentifier as Id<"sessions">,
       });
     } else {
       // Not enough questions - could implement fallback logic here
@@ -200,6 +205,7 @@ export const handlePlayerDisconnect = action({
       if (gameState.currentTurn && !gameState.currentTurn.resolved) {
         await ctx.runMutation(api.mutations.flips.resolveTurnManual, {
           roomId: args.roomId,
+          sessionId: (await ctx.auth.getUserIdentity())?.tokenIdentifier as Id<"sessions">,
         });
       }
 
