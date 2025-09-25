@@ -1,7 +1,9 @@
-import { mutation } from "../_generated/server";
+import { sessionMutation } from "../lib/myFunctions";
 import { v } from "convex/values";
 import { Doc, Id } from "../_generated/dataModel";
 import { randomSlug } from "../lib/randomSlug";
+import { getUserById } from "../users";
+import { mutation } from "../_generated/server";
 
 // Fisher-Yates shuffle algorithm
 function shuffleArray<T>(array: T[]): T[] {
@@ -13,7 +15,7 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled;
 }
 
-export const startCollection = mutation({
+export const startCollection = sessionMutation({
   args: {
     roomId: v.id("rooms"),
     mode: v.union(v.literal("curated"), v.literal("player")),
@@ -31,10 +33,7 @@ export const startCollection = mutation({
       throw new Error("Must be authenticated");
     }
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
+    const user = await getUserById(ctx.db, ctx.session.userId);
 
     if (!user) {
       throw new Error("User not found");
@@ -298,7 +297,7 @@ function selectTwoAnswers(answers: Doc<"answers">[]): Doc<"answers">[] {
   }
 }
 
-export const startGame = mutation({
+export const startGame = sessionMutation({
   args: {
     roomId: v.id("rooms"),
   },
@@ -376,7 +375,7 @@ export const startGame = mutation({
   },
 });
 
-export const endGame = mutation({
+export const endGame = sessionMutation({
   args: {
     roomId: v.id("rooms"),
   },
@@ -432,7 +431,7 @@ export const endGame = mutation({
   },
 });
 
-export const rematch = mutation({
+export const rematch = sessionMutation({
   args: {
     roomId: v.id("rooms"),
     reuseQuestions: v.optional(v.boolean()),

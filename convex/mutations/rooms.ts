@@ -1,6 +1,8 @@
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
 import { Doc, Id } from "../_generated/dataModel";
+import { sessionMutation } from "../lib/myFunctions";
+import { getUserById } from "../users";
 
 // Generate a random room code (4-6 alphanumeric characters)
 function generateRoomCode(): string {
@@ -12,7 +14,7 @@ function generateRoomCode(): string {
   return result;
 }
 
-export const createRoom = mutation({
+export const createRoom = sessionMutation({
   args: {
     visibility: v.union(v.literal("private"), v.literal("public")),
     maxPlayers: v.optional(v.number()),
@@ -22,28 +24,8 @@ export const createRoom = mutation({
     code: v.string(),
   }),
   handler: async (ctx, args) => {
-    // Get or create user identity
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Must be authenticated to create a room");
-    }
-
-    // Find or create user
-    let user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
-
-    if (!user) {
-      // Create new user with a default handle
-      const userId = await ctx.db.insert("users", {
-        handle: identity.name || `Player${Math.floor(Math.random() * 1000)}`,
-        avatarUrl: identity.pictureUrl,
-        tokenIdentifier: identity.tokenIdentifier,
-      });
-      user = await ctx.db.get(userId);
-      if (!user) throw new Error("Failed to create user");
-    }
+    // Get user from session
+    const user = await getUserById(ctx.db, ctx.session.userId);
 
     // Generate unique room code
     let code: string;
@@ -94,7 +76,7 @@ export const createRoom = mutation({
   },
 });
 
-export const joinRoom = mutation({
+export const joinRoom = sessionMutation({
   args: {
     code: v.string(),
     role: v.optional(v.union(v.literal("player"), v.literal("spectator"))),
@@ -104,27 +86,8 @@ export const joinRoom = mutation({
     membershipId: v.id("memberships"),
   }),
   handler: async (ctx, args) => {
-    // Get or create user identity
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Must be authenticated to join a room");
-    }
-
-    // Find or create user
-    let user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
-
-    if (!user) {
-      const userId = await ctx.db.insert("users", {
-        handle: identity.name || `Player${Math.floor(Math.random() * 1000)}`,
-        avatarUrl: identity.pictureUrl,
-        tokenIdentifier: identity.tokenIdentifier,
-      });
-      user = await ctx.db.get(userId);
-      if (!user) throw new Error("Failed to create user");
-    }
+    // Get user from session
+    const user = await getUserById(ctx.db, ctx.session.userId);
 
     // Find the room
     const room = await ctx.db
@@ -194,25 +157,14 @@ export const joinRoom = mutation({
   },
 });
 
-export const leaveRoom = mutation({
+export const leaveRoom = sessionMutation({
   args: {
     roomId: v.id("rooms"),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Must be authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
+    // Get user from session
+    const user = await getUserById(ctx.db, ctx.session.userId);
 
     // Find membership
     const membership = await ctx.db
@@ -245,26 +197,15 @@ export const leaveRoom = mutation({
   },
 });
 
-export const setReady = mutation({
+export const setReady = sessionMutation({
   args: {
     roomId: v.id("rooms"),
     ready: v.boolean(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Must be authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
+    // Get user from session
+    const user = await getUserById(ctx.db, ctx.session.userId);
 
     // Find membership
     const membership = await ctx.db
@@ -288,26 +229,15 @@ export const setReady = mutation({
   },
 });
 
-export const kickMember = mutation({
+export const kickMember = sessionMutation({
   args: {
     roomId: v.id("rooms"),
     userId: v.id("users"),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Must be authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
+    // Get user from session
+    const user = await getUserById(ctx.db, ctx.session.userId);
 
     // Verify user is host
     const hostMembership = await ctx.db

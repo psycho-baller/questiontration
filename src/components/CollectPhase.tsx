@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
+import { useSessionMutation } from '../hooks/useServerSession';
 
 interface CollectPhaseProps {
   roomState: {
@@ -36,12 +37,12 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
 
   const questionPool = useQuery(api.questionPool, { roomId });
   const gameState = useQuery(api.gameState, { roomId });
-  
-  const submitQuestion = useMutation(api.submitQuestion);
-  const submitAnswer = useMutation(api.submitAnswer);
-  const approveQuestion = useMutation(api.approveQuestion);
-  const assembleBoard = useMutation(api.assembleBoard);
-  const leaveRoom = useMutation(api.leaveRoom);
+
+  const submitQuestion = useSessionMutation(api.mutations.questions.submitQuestion);
+  const submitAnswer = useSessionMutation(api.mutations.questions.submitAnswer);
+  const approveQuestion = useSessionMutation(api.mutations.questions.approveQuestion);
+  const assembleBoard = useSessionMutation(api.mutations.games.assembleBoard);
+  const leaveRoom = useSessionMutation(api.mutations.rooms.leaveRoom);
 
   const isHost = roomState.members.find(m => m.userId === roomState.host._id)?.role === 'host';
   const gameMode = gameState?.game?.settings?.mode || 'player';
@@ -184,7 +185,7 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
               </button>
             )}
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div className="text-center">
               <div className="text-3xl font-bold text-white">{questionPool.questions.length}</div>
@@ -205,14 +206,14 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
               className={`h-3 rounded-full transition-all duration-300 ${
                 questionPool.progress.readyForBoard ? 'bg-green-500' : 'bg-yellow-500'
               }`}
-              style={{ 
-                width: `${Math.min(100, (questionPool.progress.questionsWithTwoAnswers / questionPool.progress.targetQuestions) * 100)}%` 
+              style={{
+                width: `${Math.min(100, (questionPool.progress.questionsWithTwoAnswers / questionPool.progress.targetQuestions) * 100)}%`
               }}
             />
           </div>
           <div className="text-center mt-2 text-blue-200">
-            {questionPool.progress.readyForBoard 
-              ? '✓ Ready to start game!' 
+            {questionPool.progress.readyForBoard
+              ? '✓ Ready to start game!'
               : `Need ${questionPool.progress.targetQuestions - questionPool.progress.questionsWithTwoAnswers} more questions with 2+ answers`
             }
           </div>
@@ -330,7 +331,7 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
                       </div>
                     )}
                   </div>
-                  
+
                   {question.answers.length > 0 && (
                     <div className="mt-3 space-y-2">
                       <div className="text-sm text-blue-200 font-medium">Answers:</div>
