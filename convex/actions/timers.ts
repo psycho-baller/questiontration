@@ -30,10 +30,24 @@ export const executeFlipBack = action({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    // Get the current user's ID from their token
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Must be authenticated");
+    }
+
+    const user = await ctx.runQuery(api.users.getUserByToken, {
+      tokenIdentifier: identity.tokenIdentifier,
+    });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
     // Call the mutation to resolve the turn and flip cards back if needed
-    await ctx.runMutation(api.mutations.flips.resolveTurnManual, {
+    await ctx.runMutation(api.mutations.flips.resolveTurnManualFromAction, {
       roomId: args.roomId,
-      sessionId: (await ctx.auth.getUserIdentity())?.tokenIdentifier as Id<"sessions">,
+      userId: user._id,
     });
 
     return null;
@@ -81,17 +95,31 @@ export const executeTurnTimeout = action({
 
       if (turnAge > maxTurnTime) {
         // Force resolve the turn
+        // Get the current user's ID from their token
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) {
+          throw new Error("Must be authenticated");
+        }
+
+        const user = await ctx.runQuery(api.users.getUserByToken, {
+          tokenIdentifier: identity.tokenIdentifier,
+        });
+
+        if (!user) {
+          throw new Error("User not found");
+        }
+
         if (gameState.currentTurn.picks.length === 1) {
           // Player only flipped one card - flip it back and advance turn
-          await ctx.runMutation(api.mutations.flips.resolveTurnManual, {
+          await ctx.runMutation(api.mutations.flips.resolveTurnManualFromAction, {
             roomId: args.roomId,
-            sessionId: (await ctx.auth.getUserIdentity())?.tokenIdentifier as Id<"sessions">,
+            userId: user._id,
           });
         } else if (gameState.currentTurn.picks.length === 2) {
           // Player flipped two cards but turn wasn't resolved - resolve it now
-          await ctx.runMutation(api.mutations.flips.resolveTurnManual, {
+          await ctx.runMutation(api.mutations.flips.resolveTurnManualFromAction, {
             roomId: args.roomId,
-            sessionId: (await ctx.auth.getUserIdentity())?.tokenIdentifier as Id<"sessions">,
+            userId: user._id,
           });
         }
       }
@@ -140,10 +168,24 @@ export const executeCollectionTimeout = action({
     });
 
     if (questionPool.progress.readyForBoard) {
+      // Get the current user's ID from their token
+      const identity = await ctx.auth.getUserIdentity();
+      if (!identity) {
+        throw new Error("Must be authenticated");
+      }
+
+      const user = await ctx.runQuery(api.users.getUserByToken, {
+        tokenIdentifier: identity.tokenIdentifier,
+      });
+
+      if (!user) {
+        throw new Error("User not found");
+      }
+
       // Automatically assemble board if we have enough questions
-      await ctx.runMutation(api.mutations.games.assembleBoard, {
+      await ctx.runMutation(api.mutations.games.assembleBoardFromAction, {
         roomId: args.roomId,
-        sessionId: (await ctx.auth.getUserIdentity())?.tokenIdentifier as Id<"sessions">,
+        userId: user._id,
       });
     } else {
       // Not enough questions - could implement fallback logic here
@@ -203,9 +245,23 @@ export const handlePlayerDisconnect = action({
     if (gameState.game.currentPlayerId === args.playerId) {
       // If there's an unresolved turn, resolve it immediately
       if (gameState.currentTurn && !gameState.currentTurn.resolved) {
-        await ctx.runMutation(api.mutations.flips.resolveTurnManual, {
+        // Get the current user's ID from their token
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) {
+          throw new Error("Must be authenticated");
+        }
+
+        const user = await ctx.runQuery(api.users.getUserByToken, {
+          tokenIdentifier: identity.tokenIdentifier,
+        });
+
+        if (!user) {
+          throw new Error("User not found");
+        }
+
+        await ctx.runMutation(api.mutations.flips.resolveTurnManualFromAction, {
           roomId: args.roomId,
-          sessionId: (await ctx.auth.getUserIdentity())?.tokenIdentifier as Id<"sessions">,
+          userId: user._id,
         });
       }
 

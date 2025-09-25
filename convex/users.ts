@@ -1,5 +1,5 @@
 import { UserIdentity } from "convex/server";
-import { myMutation, sessionMutation, sessionQuery } from "./lib/myFunctions";
+import { myMutation, myQuery, sessionMutation, sessionQuery } from "./lib/myFunctions";
 import md5 from "md5";
 import { DatabaseReader, DatabaseWriter } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
@@ -74,6 +74,24 @@ export const getMyProfile = sessionQuery({
       _id: user._id,
       handle: user.handle, 
       avatarUrl: user.avatarUrl 
+    };
+  },
+});
+
+/**
+ * Gets a user by their token identifier. For use in actions.
+ */
+export const getUserByToken = myQuery({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, { tokenIdentifier }) => {
+    const user = await getUser(ctx.db, tokenIdentifier);
+    if (!user) return null;
+    
+    return {
+      _id: user._id,
+      handle: user.handle,
+      avatarUrl: user.avatarUrl,
+      tokenIdentifier: user.tokenIdentifier,
     };
   },
 });

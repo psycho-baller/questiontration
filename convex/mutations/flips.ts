@@ -1,4 +1,5 @@
 import { sessionMutation } from "../lib/myFunctions";
+import { mutation } from "../_generated/server";
 import { v } from "convex/values";
 import { Doc, Id } from "../_generated/dataModel";
 
@@ -346,6 +347,43 @@ export const resolveTurnManual = sessionMutation({
         });
       }
     }
+
+    return null;
+  },
+});
+
+// Regular mutation version for calling from actions
+export const resolveTurnManualFromAction = mutation({
+  args: {
+    roomId: v.id("rooms"),
+    userId: v.id("users"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    // Get current game
+    const game = await ctx.db
+      .query("games")
+      .withIndex("by_room_id", (q) => q.eq("roomId", args.roomId))
+      .order("desc")
+      .first();
+
+    if (!game) {
+      throw new Error("No active game found");
+    }
+
+    // Get current unresolved turn
+    const currentTurn = await ctx.db
+      .query("turns")
+      .withIndex("by_game_id", (q) => q.eq("gameId", game._id))
+      .filter((q) => q.eq(q.field("resolved"), false))
+      .first();
+
+    if (!currentTurn) {
+      return null; // No turn to resolve
+    }
+
+    // Resolve the turn
+    await resolveTurn(ctx, currentTurn._id, currentTurn.picks, game, args.roomId);
 
     return null;
   },
