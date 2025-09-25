@@ -1,6 +1,7 @@
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
 import { Doc, Id } from "../_generated/dataModel";
+import { sessionMutation } from "../lib/myFunctions";
 
 // Basic profanity filter - in production, use a more sophisticated solution
 const PROFANITY_WORDS = [
@@ -37,7 +38,7 @@ function validateAnswerText(text: string): void {
   }
 }
 
-export const submitQuestion = mutation({
+export const submitQuestion = sessionMutation({
   args: {
     roomId: v.id("rooms"),
     text: v.string(),
@@ -64,7 +65,7 @@ export const submitQuestion = mutation({
     // Check if user is a member of the room
     const membership = await ctx.db
       .query("memberships")
-      .withIndex("by_room_and_user", (q) => 
+      .withIndex("by_room_and_user", (q) =>
         q.eq("roomId", args.roomId).eq("userId", user._id)
       )
       .unique();
@@ -109,7 +110,7 @@ export const submitQuestion = mutation({
     // Rate limiting: check how many questions this user has submitted recently
     const recentQuestions = await ctx.db
       .query("questions")
-      .withIndex("by_room_and_creator", (q) => 
+      .withIndex("by_room_and_creator", (q) =>
         q.eq("roomId", args.roomId).eq("createdByUserId", user._id)
       )
       .collect();
@@ -141,7 +142,7 @@ export const submitQuestion = mutation({
   },
 });
 
-export const submitAnswer = mutation({
+export const submitAnswer = sessionMutation({
   args: {
     roomId: v.id("rooms"),
     questionId: v.id("questions"),
@@ -169,7 +170,7 @@ export const submitAnswer = mutation({
     // Check if user is a member of the room
     const membership = await ctx.db
       .query("memberships")
-      .withIndex("by_room_and_user", (q) => 
+      .withIndex("by_room_and_user", (q) =>
         q.eq("roomId", args.roomId).eq("userId", user._id)
       )
       .unique();
@@ -193,7 +194,7 @@ export const submitAnswer = mutation({
     // Check if user has already answered this question
     const existingAnswer = await ctx.db
       .query("answers")
-      .withIndex("by_question_and_user", (q) => 
+      .withIndex("by_question_and_user", (q) =>
         q.eq("questionId", args.questionId).eq("createdByUserId", user._id)
       )
       .first();
@@ -242,7 +243,7 @@ export const submitAnswer = mutation({
   },
 });
 
-export const approveQuestion = mutation({
+export const approveQuestion = sessionMutation({
   args: {
     roomId: v.id("rooms"),
     questionId: v.id("questions"),

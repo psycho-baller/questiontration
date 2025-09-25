@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useMutation } from 'convex/react';
+import { useSessionMutation } from '../hooks/useServerSession';
 import { api } from '../../convex/_generated/api';
 
 interface LobbyProps {
@@ -42,10 +42,10 @@ export default function Lobby({ roomState, onLeaveRoom }: LobbyProps) {
   const [collectSeconds, setCollectSeconds] = useState(120);
   const [isStarting, setIsStarting] = useState(false);
 
-  const setReady = useMutation(api.setReady);
-  const leaveRoom = useMutation(api.leaveRoom);
-  const kickMember = useMutation(api.kickMember);
-  const startCollection = useMutation(api.startCollection);
+  const setReady = useSessionMutation(api.mutations.rooms.setReady);
+  const leaveRoom = useSessionMutation(api.mutations.rooms.leaveRoom);
+  const kickMember = useSessionMutation(api.mutations.rooms.kickMember);
+  const startCollection = useSessionMutation(api.mutations.games.startCollection);
 
   // Get current user from members
   const currentUser = roomState.members.find(m => m.user._id === roomState.host._id) || roomState.members[0];
@@ -92,7 +92,7 @@ export default function Lobby({ roomState, onLeaveRoom }: LobbyProps) {
 
   const handleStartGame = async () => {
     if (!isHost || !canStart) return;
-    
+
     setIsStarting(true);
     try {
       await startCollection({
@@ -221,7 +221,7 @@ export default function Lobby({ roomState, onLeaveRoom }: LobbyProps) {
             {isHost && (
               <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 shadow-2xl border border-white/20">
                 <h2 className="text-2xl font-bold text-white mb-4">Game Settings</h2>
-                
+
                 <div className="space-y-4">
                   <div>
                     <label className="block text-white font-medium mb-2">Game Mode</label>
@@ -234,7 +234,7 @@ export default function Lobby({ roomState, onLeaveRoom }: LobbyProps) {
                       <option value="curated">Curated Questions</option>
                     </select>
                     <p className="text-sm text-blue-200 mt-1">
-                      {gameMode === 'player' 
+                      {gameMode === 'player'
                         ? 'Players create their own questions'
                         : 'Use pre-made questions'
                       }
@@ -276,7 +276,7 @@ export default function Lobby({ roomState, onLeaveRoom }: LobbyProps) {
             {/* Start Game */}
             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 shadow-2xl border border-white/20">
               <h2 className="text-2xl font-bold text-white mb-4">Ready to Start?</h2>
-              
+
               <div className="mb-4">
                 <div className="text-white mb-2">
                   Ready: {readyPlayers}/{players.length} players

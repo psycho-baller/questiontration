@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useMutation } from 'convex/react';
+import { useSessionMutation } from '../hooks/useServerSession';
 import { api } from '../../convex/_generated/api';
 
 interface HomeProps {
@@ -11,8 +11,8 @@ export default function Home({ onJoinRoom }: HomeProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
 
-  const createRoom = useMutation(api.mutations.rooms.createRoom);
-  const joinRoom = useMutation(api.mutations.rooms.joinRoom);
+  const createRoom = useSessionMutation(api.mutations.rooms.createRoom);
+  const joinRoom = useSessionMutation(api.mutations.rooms.joinRoom);
 
   const handleCreateRoom = async () => {
     setIsCreating(true);
