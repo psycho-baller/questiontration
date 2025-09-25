@@ -35,8 +35,8 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
   const [selectedQuestionId, setSelectedQuestionId] = useState<string>('');
   const [timeLeft, setTimeLeft] = useState(120); // 2 minutes default
 
-  const questionPool = useQuery(api.questionPool, { roomId });
-  const gameState = useQuery(api.gameState, { roomId });
+  const questionPool = useQuery(api.questionPool.questionPool, { roomId });
+  const gameState = useQuery(api.gameState.gameState, { roomId });
 
   const submitQuestion = useSessionMutation(api.mutations.questions.submitQuestion);
   const submitAnswer = useSessionMutation(api.mutations.questions.submitAnswer);
