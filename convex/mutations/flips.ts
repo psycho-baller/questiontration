@@ -224,8 +224,14 @@ async function resolveTurn(
       await advanceToNextPlayer(ctx, game, roomId);
     }
   } else {
-    // Not a match - cards will be flipped back by action timer
-    // For now, just advance to next player
+    // Not a match - schedule cards to be flipped back after a brief delay
+    // This allows players to see both cards before they flip back
+    await ctx.scheduler.runAfter(2000, "actions/timers:executeFlipBack", {
+      roomId,
+      cardIds,
+    });
+
+    // Advance to next player
     await advanceToNextPlayer(ctx, game, roomId);
 
     // Log mismatch event
@@ -343,6 +349,42 @@ export const resolveTurnManual = sessionMutation({
           gameId: game._id,
           roomId: args.roomId,
           payload: { turnId: currentTurn._id, cardIds: [card1._id, card2._id] },
+          ts: Date.now(),
+        });
+      }
+    }
+
+    return null;
+  },
+});
+
+// Simple mutation to flip a card back to face down
+export const flipCardBack = mutation({
+  args: {
+    cardId: v.id("cards"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const card = await ctx.db.get(args.cardId);
+    if (!card) {
+      throw new Error("Card not found");
+    }
+
+    // Only flip back if card is currently face up
+    if (card.state === "faceUp") {
+      await ctx.db.patch(args.cardId, {
+        state: "faceDown" as const,
+      });
+
+      // Get the game to find the roomId
+      const game = await ctx.db.get(card.gameId);
+      if (game) {
+        // Log flip back event
+        await ctx.db.insert("audit", {
+          type: "card_flipped_back",
+          gameId: card.gameId,
+          roomId: game.roomId,
+          payload: { cardId: args.cardId },
           ts: Date.now(),
         });
       }

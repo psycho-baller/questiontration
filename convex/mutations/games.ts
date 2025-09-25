@@ -497,7 +497,7 @@ export const assembleBoardFromAction = mutation({
       .withIndex("by_room_id", (q) => q.eq("roomId", args.roomId))
       .collect();
 
-    const approvedQuestions = questions.filter(q => 
+    const approvedQuestions = questions.filter(q =>
       (game.settings.mode === "curated" || q.approved !== false)
     );
 
@@ -568,6 +568,101 @@ export const assembleBoardFromAction = mutation({
       roomId: args.roomId,
       userId: args.userId,
       payload: { questionCount: selectedQuestions.length, cardCount: cards.length },
+      ts: Date.now(),
+    });
+
+    return null;
+  },
+});
+
+// Reset game progress while keeping the same questions and answers
+export const resetGameProgress = sessionMutation({
+  args: {
+    roomId: v.id("rooms"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    // Get current game
+    const game = await ctx.db
+      .query("games")
+      .withIndex("by_room_id", (q) => q.eq("roomId", args.roomId))
+      .order("desc")
+      .first();
+
+    if (!game) {
+      throw new Error("No active game found");
+    }
+
+    // Verify user is host
+    const room = await ctx.db.get(args.roomId);
+    if (!room || room.hostUserId !== ctx.session.userId) {
+      throw new Error("Only the host can reset the game");
+    }
+
+    // if (game.status !== "active") {
+    //   throw new Error("Can only reset active games");
+    // }
+
+    // Reset all cards to face down
+    const cards = await ctx.db
+      .query("cards")
+      .withIndex("by_game_id", (q) => q.eq("gameId", game._id))
+      .collect();
+
+    for (const card of cards) {
+      await ctx.db.patch(card._id, {
+        state: "faceDown" as const,
+      });
+    }
+
+    // Reset all scores to 0
+    const scores = await ctx.db
+      .query("scores")
+      .withIndex("by_game_id", (q) => q.eq("gameId", game._id))
+      .collect();
+
+    for (const score of scores) {
+      await ctx.db.patch(score._id, {
+        points: 0,
+      });
+    }
+
+    // Delete all turns
+    const turns = await ctx.db
+      .query("turns")
+      .withIndex("by_game_id", (q) => q.eq("gameId", game._id))
+      .collect();
+
+    for (const turn of turns) {
+      await ctx.db.delete(turn._id);
+    }
+
+    // Reset game state
+    const players = await ctx.db
+      .query("memberships")
+      .withIndex("by_room_id", (q) => q.eq("roomId", args.roomId))
+      .collect();
+
+    const activePlayers = players.filter(p => p.role === "player" || p.role === "host");
+    const firstPlayer = activePlayers.sort((a, b) => a.joinedAt - b.joinedAt)[0];
+
+    await ctx.db.patch(game._id, {
+      turnIndex: 0,
+      currentPlayerId: firstPlayer?.userId,
+      status: "active" as const,
+    });
+
+    // Log reset event
+    await ctx.db.insert("audit", {
+      type: "game_reset",
+      gameId: game._id,
+      roomId: args.roomId,
+      userId: ctx.session.userId,
+      payload: {
+        cardsReset: cards.length,
+        scoresReset: scores.length,
+        turnsDeleted: turns.length,
+      },
       ts: Date.now(),
     });
 

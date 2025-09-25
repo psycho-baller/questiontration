@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
-import { useSessionMutation } from '../hooks/useServerSession';
+import { useSessionMutation, useSessionQuery } from '../hooks/useServerSession';
 
 interface BoardProps {
   roomState: {
@@ -66,12 +66,15 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
   const flipCard = useSessionMutation(api.mutations.flips.flipCard);
   const leaveRoom = useSessionMutation(api.mutations.rooms.leaveRoom);
   const reportContent = useSessionMutation(api.mutations.moderation.reportContent);
+  const resetGame = useSessionMutation(api.mutations.games.resetGameProgress);
+  const myProfile = useSessionQuery(api.users.getMyProfile);
 
   // Get current user
   const currentUser = roomState.members.find(m =>
     m.user._id === gameState.game.currentPlayerId
   );
   const isCurrentPlayer = gameState.game.currentPlayerId === currentUser?.user._id;
+  const isHost = myProfile ? roomState.room.hostUserId === myProfile._id : false;
 
   // Turn timer
   useEffect(() => {
@@ -124,6 +127,23 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
     } catch (error) {
       console.error('Failed to leave room:', error);
       onLeaveRoom();
+    }
+  };
+
+  const handleResetGame = async () => {
+    if (!isHost) return;
+    
+    const confirmed = window.confirm(
+      'Are you sure you want to reset the game? This will clear all progress but keep the same questions and answers.'
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      await resetGame({ roomId });
+    } catch (error) {
+      console.error('Failed to reset game:', error);
+      alert('Failed to reset game. Please try again.');
     }
   };
 
@@ -213,6 +233,15 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
                 </div>
               )}
 
+              {isHost && (
+                <button
+                  onClick={handleResetGame}
+                  className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  Reset Game
+                </button>
+              )}
+              
               <button
                 onClick={handleLeaveRoom}
                 className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"

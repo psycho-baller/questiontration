@@ -16,7 +16,6 @@ export const scheduleFlipBack = action({
     // Schedule the flip back after the specified delay
     await ctx.scheduler.runAfter(args.delayMs, api.actions.timers.executeFlipBack, {
       roomId: args.roomId,
-      turnId: args.turnId,
     });
 
     return null;
@@ -26,10 +25,35 @@ export const scheduleFlipBack = action({
 export const executeFlipBack = action({
   args: {
     roomId: v.id("rooms"),
-    turnId: v.id("turns"),
+    cardIds: v.optional(v.array(v.id("cards"))),
   },
-  returns: v.null(),
   handler: async (ctx, args) => {
+    // If specific card IDs are provided, flip those back
+    if (args.cardIds && args.cardIds.length > 0) {
+      // Get current game
+      const gameState = await ctx.runQuery(api.gameState.gameState, {
+        roomId: args.roomId,
+      });
+
+      if (!gameState || gameState.game.status !== "active") {
+        console.log("Game not active");
+        return null;
+      }
+
+      // Flip the specified cards back to face down
+      for (const cardId of args.cardIds) {
+        const card = gameState.cards.find(c => c._id === cardId);
+        if (card && card.state === "faceUp") {
+          await ctx.runMutation(api.mutations.flips.flipCardBack, {
+            cardId,
+          });
+        }
+      }
+
+      return null;
+    }
+
+    // Original logic for manual turn resolution
     // Get the current user's ID from their token
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
