@@ -30,6 +30,8 @@ export const gameState = query({
           turnSeconds: v.number(),
           collectSeconds: v.number(),
           contentRating: v.union(v.literal("PG"), v.literal("PG13")),
+          boardSize: v.number(),
+          pairCount: v.number(),
         }),
         _creationTime: v.number(),
       }),
@@ -54,6 +56,7 @@ export const gameState = query({
       })),
       currentTurn: v.optional(v.object({
         _id: v.id("turns"),
+        _creationTime: v.number(),
         gameId: v.id("games"),
         playerId: v.id("users"),
         picks: v.array(v.id("cards")),
