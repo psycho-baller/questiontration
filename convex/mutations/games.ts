@@ -651,6 +651,9 @@ export const resetGameProgress = sessionMutation({
       currentPlayerId: firstPlayer?.userId,
       status: "active" as const,
     });
+    await ctx.db.patch(args.roomId, {
+      status: "playing" as const,
+    });
 
     // Log reset event
     await ctx.db.insert("audit", {

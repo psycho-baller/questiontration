@@ -83,8 +83,8 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
     return () => clearInterval(timer);
   }, []);
 
-  const handleSubmitQuestion = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmitQuestion = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!newQuestion.trim()) return;
 
     try {
@@ -99,8 +99,17 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
     }
   };
 
-  const handleSubmitAnswer = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleQuestionKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      if (newQuestion.length >= 20) {
+        handleSubmitQuestion();
+      }
+    }
+  };
+
+  const handleSubmitAnswer = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!answerText.trim()) return;
 
     const availableQuestions = questionPool?.questions.filter(q => 
@@ -125,6 +134,15 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
     } catch (error) {
       console.error('Failed to submit answer:', error);
       alert('Failed to submit answer. Please try again.');
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      if (answerText.length >= 5) {
+        handleSubmitAnswer();
+      }
     }
   };
 
@@ -262,14 +280,21 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
                     <textarea
                       value={newQuestion}
                       onChange={(e) => setNewQuestion(e.target.value)}
+                      onKeyDown={handleQuestionKeyDown}
                       placeholder="Enter your question (20-120 characters)..."
                       className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-3 text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
                       rows={3}
                       minLength={20}
                       maxLength={120}
                     />
-                    <div className="text-right text-sm text-blue-200 mt-1">
-                      {newQuestion.length}/120
+                    <div className="flex justify-between text-sm text-blue-200 mt-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs bg-white/10 px-2 py-1 rounded border border-white/20">
+                          ⌘ + Enter
+                        </span>
+                        <span className="text-xs">to submit</span>
+                      </div>
+                      <div>{newQuestion.length}/120</div>
                     </div>
                   </div>
                   <button
@@ -345,14 +370,21 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
                         <textarea
                           value={answerText}
                           onChange={(e) => setAnswerText(e.target.value)}
+                          onKeyDown={handleKeyDown}
                           placeholder="Enter your answer (5-200 characters)..."
                           className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-3 text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
                           rows={3}
                           minLength={5}
                           maxLength={200}
                         />
-                        <div className="text-right text-sm text-blue-200 mt-1">
-                          {answerText.length}/200
+                        <div className="flex justify-between text-sm text-blue-200 mt-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs bg-white/10 px-2 py-1 rounded border border-white/20">
+                              ⌘ + Enter
+                            </span>
+                            <span className="text-xs">to submit & continue</span>
+                          </div>
+                          <div>{answerText.length}/200</div>
                         </div>
                       </div>
 

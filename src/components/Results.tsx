@@ -111,11 +111,11 @@ export default function Results({ roomState, gameState, roomId, onLeaveRoom }: R
 
   const handleResetGame = async () => {
     if (!isHost) return;
-    
+
     const confirmed = window.confirm(
       'Are you sure you want to reset the board? This will clear all progress but keep the same questions and answers, allowing you to replay immediately.'
     );
-    
+
     if (!confirmed) return;
 
     try {
