@@ -28,24 +28,13 @@ export const startCollection = sessionMutation({
   },
   returns: v.id("games"),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Must be authenticated");
-    }
-
-    const user = await getUserById(ctx.db, ctx.session.userId);
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
     // Verify user is host
     const room = await ctx.db.get(args.roomId);
     if (!room) {
       throw new Error("Room not found");
     }
 
-    if (room.hostUserId !== user._id) {
+    if (room.hostUserId !== ctx.session.userId) {
       throw new Error("Only the host can start collection");
     }
 
@@ -65,7 +54,7 @@ export const startCollection = sessionMutation({
       pairCount: 8, // 8 pairs
       status: "collecting" as const,
       turnIndex: 0,
-      currentPlayerId: user._id,
+      currentPlayerId: ctx.session.userId,
       startedAt: Date.now(),
       settings: {
         mode: args.mode,
@@ -76,7 +65,7 @@ export const startCollection = sessionMutation({
         boardSize: 16,
         pairCount: 8
       },
-      hostId: user._id,
+      hostId: ctx.session.userId,
       playerIds: [],
       roundIds: [],
       slug: randomSlug(),
@@ -101,7 +90,7 @@ export const startCollection = sessionMutation({
 
     // If curated mode, add preset questions
     if (args.mode === "curated") {
-      await addCuratedQuestions(ctx, args.roomId, user._id);
+      await addCuratedQuestions(ctx, args.roomId, ctx.session.userId);
     }
 
     // Log audit event
@@ -109,7 +98,7 @@ export const startCollection = sessionMutation({
       type: "collection_started",
       gameId,
       roomId: args.roomId,
-      userId: user._id,
+      userId: ctx.session.userId,
       payload: { mode: args.mode, settings: args.settings },
       ts: Date.now(),
     });
@@ -151,25 +140,12 @@ async function addCuratedQuestions(ctx: any, roomId: Id<"rooms">, userId: Id<"us
   }
 }
 
-export const assembleBoard = mutation({
+export const assembleBoard = sessionMutation({
   args: {
     roomId: v.id("rooms"),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Must be authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
 
     // Get current game
     const game = await ctx.db
@@ -184,7 +160,7 @@ export const assembleBoard = mutation({
 
     // Verify user is host
     const room = await ctx.db.get(args.roomId);
-    if (!room || room.hostUserId !== user._id) {
+    if (!room || room.hostUserId !== ctx.session.userId) {
       throw new Error("Only the host can assemble the board");
     }
 
@@ -268,7 +244,7 @@ export const assembleBoard = mutation({
       type: "board_assembled",
       gameId: game._id,
       roomId: args.roomId,
-      userId: user._id,
+      userId: ctx.session.userId,
       payload: { questionCount: selectedQuestions.length, cardCount: cards.length },
       ts: Date.now(),
     });
@@ -303,19 +279,6 @@ export const startGame = sessionMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Must be authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
 
     // Get current game
     const game = await ctx.db
@@ -330,7 +293,7 @@ export const startGame = sessionMutation({
 
     // Verify user is host
     const room = await ctx.db.get(args.roomId);
-    if (!room || room.hostUserId !== user._id) {
+    if (!room || room.hostUserId !== ctx.session.userId) {
       throw new Error("Only the host can start the game");
     }
 
@@ -366,7 +329,7 @@ export const startGame = sessionMutation({
       type: "game_started",
       gameId: game._id,
       roomId: args.roomId,
-      userId: user._id,
+      userId: ctx.session.userId,
       payload: { playerCount: players.length, firstPlayerId: firstPlayer.userId },
       ts: Date.now(),
     });
@@ -381,20 +344,6 @@ export const endGame = sessionMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Must be authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
     // Get current game
     const game = await ctx.db
       .query("games")
@@ -422,7 +371,7 @@ export const endGame = sessionMutation({
       type: "game_ended",
       gameId: game._id,
       roomId: args.roomId,
-      userId: user._id,
+      userId: ctx.session.userId,
       payload: {},
       ts: Date.now(),
     });
@@ -438,23 +387,9 @@ export const rematch = sessionMutation({
   },
   returns: v.id("games"),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Must be authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
     // Verify user is host
     const room = await ctx.db.get(args.roomId);
-    if (!room || room.hostUserId !== user._id) {
+    if (!room || room.hostUserId !== ctx.session.userId) {
       throw new Error("Only the host can start a rematch");
     }
 
@@ -467,6 +402,11 @@ export const rematch = sessionMutation({
 
     if (!previousGame) {
       throw new Error("No previous game found");
+    }
+
+    // Verify user is host
+    if (!room || room.hostUserId !== ctx.session.userId) {
+      throw new Error("Only the host can start a rematch");
     }
 
     // Reset room status
@@ -513,7 +453,7 @@ export const rematch = sessionMutation({
     await ctx.db.insert("audit", {
       type: "rematch_started",
       roomId: args.roomId,
-      userId: user._id,
+      userId: ctx.session.userId,
       payload: { reuseQuestions: args.reuseQuestions ?? false },
       ts: Date.now(),
     });

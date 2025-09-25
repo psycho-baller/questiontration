@@ -45,19 +45,6 @@ export const submitQuestion = sessionMutation({
   },
   returns: v.id("questions"),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Must be authenticated to submit questions");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
 
     // Validate question text
     validateQuestionText(args.text);
@@ -66,7 +53,7 @@ export const submitQuestion = sessionMutation({
     const membership = await ctx.db
       .query("memberships")
       .withIndex("by_room_and_user", (q) =>
-        q.eq("roomId", args.roomId).eq("userId", user._id)
+        q.eq("roomId", args.roomId).eq("userId", ctx.session.userId)
       )
       .unique();
 
@@ -111,7 +98,7 @@ export const submitQuestion = sessionMutation({
     const recentQuestions = await ctx.db
       .query("questions")
       .withIndex("by_room_and_creator", (q) =>
-        q.eq("roomId", args.roomId).eq("createdByUserId", user._id)
+        q.eq("roomId", args.roomId).eq("createdByUserId", ctx.session.userId)
       )
       .collect();
 
@@ -122,7 +109,7 @@ export const submitQuestion = sessionMutation({
     // Create the question
     const questionId = await ctx.db.insert("questions", {
       text: args.text,
-      createdByUserId: user._id,
+      createdByUserId: ctx.session.userId,
       roomId: args.roomId,
       usedCount: 0,
       approved: game.settings.mode === "player" ? undefined : true, // Auto-approve in curated mode
@@ -133,7 +120,7 @@ export const submitQuestion = sessionMutation({
       type: "question_submitted",
       gameId: game._id,
       roomId: args.roomId,
-      userId: user._id,
+      userId: ctx.session.userId,
       payload: { questionId, text: args.text },
       ts: Date.now(),
     });
@@ -150,19 +137,6 @@ export const submitAnswer = sessionMutation({
   },
   returns: v.id("answers"),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Must be authenticated to submit answers");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
 
     // Validate answer text
     validateAnswerText(args.text);
@@ -171,7 +145,7 @@ export const submitAnswer = sessionMutation({
     const membership = await ctx.db
       .query("memberships")
       .withIndex("by_room_and_user", (q) =>
-        q.eq("roomId", args.roomId).eq("userId", user._id)
+        q.eq("roomId", args.roomId).eq("userId", ctx.session.userId)
       )
       .unique();
 
@@ -195,7 +169,7 @@ export const submitAnswer = sessionMutation({
     const existingAnswer = await ctx.db
       .query("answers")
       .withIndex("by_question_and_user", (q) =>
-        q.eq("questionId", args.questionId).eq("createdByUserId", user._id)
+        q.eq("questionId", args.questionId).eq("createdByUserId", ctx.session.userId)
       )
       .first();
 
@@ -218,7 +192,7 @@ export const submitAnswer = sessionMutation({
     const answerId = await ctx.db.insert("answers", {
       questionId: args.questionId,
       text: args.text,
-      createdByUserId: user._id,
+      createdByUserId: ctx.session.userId,
       roomId: args.roomId,
     });
 
@@ -234,7 +208,7 @@ export const submitAnswer = sessionMutation({
       type: "answer_submitted",
       gameId: game?._id,
       roomId: args.roomId,
-      userId: user._id,
+      userId: ctx.session.userId,
       payload: { questionId: args.questionId, answerId, text: args.text },
       ts: Date.now(),
     });
@@ -251,23 +225,9 @@ export const approveQuestion = sessionMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Must be authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
     // Verify user is host
     const room = await ctx.db.get(args.roomId);
-    if (!room || room.hostUserId !== user._id) {
+    if (!room || room.hostUserId !== ctx.session.userId) {
       throw new Error("Only the host can approve questions");
     }
 
@@ -306,7 +266,7 @@ export const approveQuestion = sessionMutation({
       type: args.approved ? "question_approved" : "question_rejected",
       gameId: game?._id,
       roomId: args.roomId,
-      userId: user._id,
+      userId: ctx.session.userId,
       payload: { questionId: args.questionId, questionText: question.text },
       ts: Date.now(),
     });
@@ -315,26 +275,13 @@ export const approveQuestion = sessionMutation({
   },
 });
 
-export const removeQuestion = mutation({
+export const removeQuestion = sessionMutation({
   args: {
     roomId: v.id("rooms"),
     questionId: v.id("questions"),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Must be authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
 
     // Verify question exists and belongs to this room
     const question = await ctx.db.get(args.questionId);
@@ -344,8 +291,8 @@ export const removeQuestion = mutation({
 
     // Check permissions: host can remove any question, users can remove their own
     const room = await ctx.db.get(args.roomId);
-    const isHost = room?.hostUserId === user._id;
-    const isOwner = question.createdByUserId === user._id;
+    const isHost = room?.hostUserId === ctx.session.userId;
+    const isOwner = question.createdByUserId === ctx.session.userId;
 
     if (!isHost && !isOwner) {
       throw new Error("You can only remove your own questions, or be the host");
@@ -376,7 +323,7 @@ export const removeQuestion = mutation({
       type: "question_removed",
       gameId: game?._id,
       roomId: args.roomId,
-      userId: user._id,
+      userId: ctx.session.userId,
       payload: { questionId: args.questionId, questionText: question.text, removedBy: isHost ? "host" : "owner" },
       ts: Date.now(),
     });

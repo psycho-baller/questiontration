@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
+import { useSessionMutation } from '../hooks/useServerSession';
 
 interface BoardProps {
   roomState: {
@@ -62,12 +63,12 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
   const [turnTimeLeft, setTurnTimeLeft] = useState(gameState.game.settings.turnSeconds);
   const [reportingCard, setReportingCard] = useState<string | null>(null);
 
-  const flipCard = useMutation(api.flipCard);
-  const leaveRoom = useMutation(api.leaveRoom);
-  const reportContent = useMutation(api.reportContent);
+  const flipCard = useSessionMutation(api.mutations.flips.flipCard);
+  const leaveRoom = useSessionMutation(api.mutations.rooms.leaveRoom);
+  const reportContent = useSessionMutation(api.mutations.moderation.reportContent);
 
   // Get current user
-  const currentUser = roomState.members.find(m => 
+  const currentUser = roomState.members.find(m =>
     m.user._id === gameState.game.currentPlayerId
   );
   const isCurrentPlayer = gameState.game.currentPlayerId === currentUser?.user._id;
@@ -88,7 +89,7 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
 
   const handleCardClick = async (cardId: string) => {
     if (!isCurrentPlayer || flippingCards.has(cardId)) return;
-    
+
     const card = gameState.cards.find(c => c._id === cardId);
     if (!card || card.state !== 'faceDown') return;
 
@@ -154,8 +155,8 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
 
     return (
       <div className={`w-full h-full rounded-lg flex flex-col items-center justify-center p-2 shadow-lg ${
-        card.state === 'matched' 
-          ? 'bg-gradient-to-br from-green-500 to-emerald-600' 
+        card.state === 'matched'
+          ? 'bg-gradient-to-br from-green-500 to-emerald-600'
           : 'bg-gradient-to-br from-yellow-400 to-orange-500'
       }`}>
         <div className="text-white text-sm font-medium text-center leading-tight">
@@ -186,7 +187,7 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
                 <span>Turn: {gameState.game.turnIndex + 1}</span>
               </div>
             </div>
-            
+
             {/* Current Turn Info */}
             <div className="flex items-center gap-4">
               {gameState.game.currentPlayerId && (
@@ -200,14 +201,14 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
                   <div className="w-24 bg-white/20 rounded-full h-2 mt-1">
                     <div
                       className="bg-yellow-500 h-2 rounded-full transition-all duration-1000"
-                      style={{ 
-                        width: `${(turnTimeLeft / gameState.game.settings.turnSeconds) * 100}%` 
+                      style={{
+                        width: `${(turnTimeLeft / gameState.game.settings.turnSeconds) * 100}%`
                       }}
                     />
                   </div>
                 </div>
               )}
-              
+
               <button
                 onClick={handleLeaveRoom}
                 className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
@@ -229,10 +230,10 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
                     className={`aspect-square cursor-pointer transition-all duration-300 transform ${
                       flippingCards.has(card._id) ? 'scale-95' : 'hover:scale-105'
                     } ${
-                      isCurrentPlayer && card.state === 'faceDown' 
-                        ? 'hover:shadow-lg' 
-                        : card.state === 'faceDown' 
-                        ? 'opacity-75 cursor-not-allowed' 
+                      isCurrentPlayer && card.state === 'faceDown'
+                        ? 'hover:shadow-lg'
+                        : card.state === 'faceDown'
+                        ? 'opacity-75 cursor-not-allowed'
                         : ''
                     }`}
                     onClick={() => handleCardClick(card._id)}
@@ -247,7 +248,7 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
                   </div>
                 ))}
               </div>
-              
+
               {/* Turn Status */}
               <div className="mt-6 text-center">
                 {isCurrentPlayer ? (
@@ -259,7 +260,7 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
                     Waiting for {currentUser?.user.handle || 'player'} to make their move...
                   </div>
                 )}
-                
+
                 {gameState.currentTurn && gameState.currentTurn.picks.length > 0 && (
                   <div className="text-yellow-300 mt-2">
                     {gameState.currentTurn.picks.length}/2 cards selected
