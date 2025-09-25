@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useSessionMutation } from '../hooks/useServerSession';
+import { useSessionMutation, useSessionQuery } from '../hooks/useServerSession';
 import { api } from '../../convex/_generated/api';
 
 interface LobbyProps {
@@ -47,8 +47,11 @@ export default function Lobby({ roomState, onLeaveRoom }: LobbyProps) {
   const kickMember = useSessionMutation(api.mutations.rooms.kickMember);
   const startCollection = useSessionMutation(api.mutations.games.startCollection);
 
-  // Get current user from members
-  const currentUser = roomState.members.find(m => m.user._id === roomState.host._id) || roomState.members[0];
+  // Get current user's profile to identify them in the members list
+  const myProfile = useSessionQuery(api.users.getMyProfile);
+
+  // Get current user from members using their profile
+  const currentUser = myProfile ? roomState.members.find(m => m.user._id === myProfile._id) : null;
   const isHost = currentUser?.role === 'host';
   const isReady = currentUser?.ready || false;
 
@@ -59,6 +62,7 @@ export default function Lobby({ roomState, onLeaveRoom }: LobbyProps) {
 
   const handleToggleReady = async () => {
     try {
+      console.log('Toggling ready state for room:', roomState.room._id);
       await setReady({
         roomId: roomState.room._id as any,
         ready: !isReady,
