@@ -174,7 +174,11 @@ export const submitAnswer = sessionMutation({
       .first();
 
     if (existingAnswer) {
-      throw new Error("You have already answered this question");
+      // update the answer
+      await ctx.db.patch(existingAnswer._id, {
+        text: args.text,
+      });
+      return existingAnswer._id;
     }
 
     // Check for duplicate answer text for this question
