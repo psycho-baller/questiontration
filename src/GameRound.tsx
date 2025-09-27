@@ -4,7 +4,7 @@ import { ClientGameState } from "../convex/shared";
 import { Id } from "../convex/_generated/dataModel";
 import { Countdown } from "./Countdown";
 import { GuessStage } from "./GuessStage";
-import { useSessionQuery } from "./hooks/useServerSession";
+import { useStableQuery } from "./hooks/useStableQuery";
 import { LabelStage } from "./LabelStage";
 import { Loading } from "./Loading";
 import { NextButton } from "./NextButton";
@@ -16,7 +16,7 @@ const GameRound: React.FC<{
   gameId?: Id<"games">;
   nextButton?: React.ReactElement | false;
 }> = ({ nextButton, roundId, game, gameId }) => {
-  const round = useSessionQuery(api.round.getRound, { roundId });
+  const round = useStableQuery(api.round.getRound, { roundId });
   const progress = useMutation(api.round.progress);
   if (!round) return <Loading />;
   const footer = (
