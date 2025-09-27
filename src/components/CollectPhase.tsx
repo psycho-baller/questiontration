@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { useSessionMutation, useSessionQuery } from '../hooks/useServerSession';
+import IsolatedAnswerInput from './IsolatedAnswerInput';
 
 interface CollectPhaseProps {
   roomState: {
@@ -31,7 +32,6 @@ interface CollectPhaseProps {
 
 export default function CollectPhase({ roomState, roomId, onLeaveRoom }: CollectPhaseProps) {
   const [newQuestion, setNewQuestion] = useState('');
-  const [answerText, setAnswerText] = useState('');
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(120); // 2 minutes default
 
@@ -55,25 +55,7 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
     }
   }, [gameState?.game?.settings?.collectSeconds]);
 
-  // Auto-load existing answer when changing questions
-  useEffect(() => {
-    if (!questionPool || !myProfile) return;
-    
-    const availableQuestions = questionPool.questions.filter(q => 
-      gameMode === 'curated' || q.approved !== false
-    );
-    const currentQuestion = availableQuestions[currentQuestionIndex];
-    
-    if (currentQuestion) {
-      const currentUser = roomState.members.find(m => m.user._id === myProfile._id);
-      if (currentUser) {
-        const existingAnswer = currentQuestion.answers.find(answer => 
-          answer.creatorHandle === currentUser.user.handle
-        );
-        setAnswerText(existingAnswer?.text || '');
-      }
-    }
-  }, [currentQuestionIndex, questionPool, myProfile, gameMode, roomState.members]);
+  // Note: Auto-loading existing answers is now handled by IsolatedAnswerInput component
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -108,10 +90,8 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
     }
   };
 
-  const handleSubmitAnswer = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!answerText.trim()) return;
-
+  // Stable callback for isolated answer input
+  const handleSubmitAnswer = useCallback(async (answerText: string) => {
     const availableQuestions = questionPool?.questions.filter(q => 
       gameMode === 'curated' || q.approved !== false
     ) || [];
@@ -119,32 +99,29 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
     const currentQuestion = availableQuestions[currentQuestionIndex];
     if (!currentQuestion) return;
 
-    try {
-      await submitAnswer({
-        roomId,
-        questionId: currentQuestion._id,
-        text: answerText.trim(),
-      });
-      setAnswerText('');
-      
-      // Move to next question if available
-      if (currentQuestionIndex < availableQuestions.length - 1) {
-        setCurrentQuestionIndex(currentQuestionIndex + 1);
-      }
-    } catch (error) {
-      console.error('Failed to submit answer:', error);
-      alert('Failed to submit answer. Please try again.');
+    await submitAnswer({
+      roomId,
+      questionId: currentQuestion._id,
+      text: answerText,
+    });
+    
+    // Move to next question if available
+    if (currentQuestionIndex < availableQuestions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
     }
-  };
+  }, [submitAnswer, roomId, questionPool, gameMode, currentQuestionIndex]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault();
-      if (answerText.length >= 5) {
-        handleSubmitAnswer();
-      }
-    }
-  };
+  // Navigation callbacks for isolated input
+  const handlePrevious = useCallback(() => {
+    setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1));
+  }, [currentQuestionIndex]);
+
+  const handleNext = useCallback(() => {
+    const availableQuestions = questionPool?.questions.filter(q => 
+      gameMode === 'curated' || q.approved !== false
+    ) || [];
+    setCurrentQuestionIndex(Math.min(availableQuestions.length - 1, currentQuestionIndex + 1));
+  }, [questionPool, gameMode, currentQuestionIndex]);
 
   const handleApproveQuestion = async (questionId: string, approved: boolean) => {
     if (!isHost) return;
@@ -308,131 +285,54 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
               </div>
             )}
 
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 shadow-2xl border border-white/20">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-white">Answer Questions</h2>
-                <div className="text-blue-200 text-sm">
-                  {(() => {
-                    const availableQuestions = questionPool.questions.filter(q => 
-                      gameMode === 'curated' || q.approved !== false
-                    );
-                    const currentUser = myProfile ? roomState.members.find(m => m.user._id === myProfile._id) : null;
-                    const answeredCount = currentUser ? availableQuestions.filter(q => 
-                      q.answers.some(answer => answer.creatorHandle === currentUser.user.handle)
-                    ).length : 0;
-                    
-                    return (
-                      <div className="text-right">
-                        <div>{currentQuestionIndex + 1} of {availableQuestions.length}</div>
-                        <div className="text-xs text-green-300">{answeredCount} answered</div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
-
-              {(() => {
-                const availableQuestions = questionPool.questions.filter(q => 
-                  gameMode === 'curated' || q.approved !== false
-                );
-                const currentQuestion = availableQuestions[currentQuestionIndex];
-                
-                if (!currentQuestion) {
-                  return (
+{(() => {
+              const availableQuestions = questionPool.questions.filter(q => 
+                gameMode === 'curated' || q.approved !== false
+              );
+              const currentQuestion = availableQuestions[currentQuestionIndex];
+              
+              if (!currentQuestion) {
+                return (
+                  <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 shadow-2xl border border-white/20">
                     <div className="text-center py-8">
                       <div className="text-white text-lg mb-2">No questions available yet</div>
                       <div className="text-blue-200">Wait for questions to be submitted and approved</div>
                     </div>
-                  );
-                }
-
-                // Check if user has already answered this question
-                const currentUser = myProfile ? roomState.members.find(m => m.user._id === myProfile._id) : null;
-                const userHasAnswered = currentUser ? currentQuestion.answers.some(answer => 
-                  answer.creatorHandle === currentUser.user.handle
-                ) : false;
-
-                return (
-                  <div className="space-y-4">
-                    {/* Question Display */}
-                    <div className="bg-white/10 rounded-lg p-4 border border-white/20">
-                      <div className="text-white font-medium text-lg mb-2">
-                        {currentQuestion.text}
-                      </div>
-                      <div className="text-blue-200 text-sm">
-                        by {currentQuestion.creatorHandle} • {currentQuestion.answerCount} answers
-                      </div>
-                    </div>
-
-                    {/* Answer Form */}
-                    <form onSubmit={handleSubmitAnswer} className="space-y-4">
-                      <div>
-                        <textarea
-                          value={answerText}
-                          onChange={(e) => setAnswerText(e.target.value)}
-                          onKeyDown={handleKeyDown}
-                          placeholder="Enter your answer (5-200 characters)..."
-                          className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-3 text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
-                          rows={3}
-                          minLength={5}
-                          maxLength={200}
-                        />
-                        <div className="flex justify-between text-sm text-blue-200 mt-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs bg-white/10 px-2 py-1 rounded border border-white/20">
-                              ⌘ + Enter
-                            </span>
-                            <span className="text-xs">to submit & continue</span>
-                          </div>
-                          <div>{answerText.length}/200</div>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))}
-                          disabled={currentQuestionIndex === 0}
-                          className="px-4 py-2 bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:opacity-50 text-white rounded-lg transition-colors"
-                        >
-                          Previous
-                        </button>
-                        
-                        <button
-                          type="submit"
-                          disabled={answerText.length < 5}
-                          className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white py-3 rounded-lg font-bold transition-colors"
-                        >
-                          {userHasAnswered ? 'Update Answer' : 'Submit Answer'}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAnswerText('');
-                            setCurrentQuestionIndex(Math.min(availableQuestions.length - 1, currentQuestionIndex + 1));
-                          }}
-                          disabled={currentQuestionIndex >= availableQuestions.length - 1}
-                          className="px-4 py-2 bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:opacity-50 text-white rounded-lg transition-colors"
-                        >
-                          Skip
-                        </button>
-                      </div>
-                    </form>
-
-                    {/* Progress Bar */}
-                    <div className="w-full bg-white/20 rounded-full h-2">
-                      <div
-                        className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                        style={{
-                          width: `${((currentQuestionIndex + 1) / availableQuestions.length) * 100}%`
-                        }}
-                      />
-                    </div>
                   </div>
                 );
-              })()}
-            </div>
+              }
+
+              // Check if user has already answered this question
+              const currentUser = myProfile ? roomState.members.find(m => m.user._id === myProfile._id) : null;
+              const userHasAnswered = currentUser ? currentQuestion.answers.some(answer => 
+                answer.creatorHandle === currentUser.user.handle
+              ) : false;
+
+              const answeredCount = currentUser ? availableQuestions.filter(q => 
+                q.answers.some(answer => answer.creatorHandle === currentUser.user.handle)
+              ).length : 0;
+
+              const existingAnswer = currentUser ? currentQuestion.answers.find(answer => 
+                answer.creatorHandle === currentUser.user.handle
+              ) : null;
+
+              return (
+                <IsolatedAnswerInput
+                  roomId={roomId}
+                  currentQuestion={currentQuestion}
+                  currentQuestionIndex={currentQuestionIndex}
+                  totalQuestions={availableQuestions.length}
+                  answeredCount={answeredCount}
+                  userHasAnswered={userHasAnswered}
+                  existingAnswerText={existingAnswer?.text || ''}
+                  onSubmit={handleSubmitAnswer}
+                  onPrevious={handlePrevious}
+                  onNext={handleNext}
+                  canGoPrevious={currentQuestionIndex > 0}
+                  canGoNext={currentQuestionIndex < availableQuestions.length - 1}
+                />
+              );
+            })()}
           </div>
 
           {/* Questions List */}
