@@ -111,7 +111,7 @@ export const startCollection = sessionMutation({
 async function addCuratedQuestions(ctx: any, roomId: Id<"rooms">, userId: Id<"users">) {
   // Load curated questions from JSON file
   const curatedQuestions = [
-    "What's your favorite childhood memory?",
+    // "What's your favorite childhood memory?",
     "If you could have dinner with anyone, who would it be?",
     "What's the best advice you've ever received?",
     "What's your biggest fear?",
@@ -119,10 +119,18 @@ async function addCuratedQuestions(ctx: any, roomId: Id<"rooms">, userId: Id<"us
     "What's the most interesting thing about you?",
     "What's your favorite book or movie?",
     "What would you do with a million dollars?",
+    "What would you do if you were not a student?",
     "What's your biggest accomplishment?",
     "What's something you've always wanted to learn?",
     "What's your favorite way to spend a weekend?",
     "What's the best gift you've ever received?",
+    "Your go-to study spot on campus",
+    "One UCalgary club or community you enjoy most?",
+    "One prof or TA style that motivates you most?",
+    "One stress reset you use during midterms?",
+    "Favorite quick lunch or snack around campus?",
+    "A hidden gem space on the UCalgary campus?",
+    "Your best tip for new UCalgary students",
   ];
 
   // Shuffle and take 8 questions
