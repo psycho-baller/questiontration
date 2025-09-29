@@ -347,12 +347,12 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 shadow-2xl border border-white/20">
               <h2 className="text-xl font-bold text-white mb-4">How to Play</h2>
               <div className="space-y-2 text-sm text-blue-200">
-                <p>• You see answers on the board initially</p>
-                <p>• Click answers to reveal their questions</p>
-                <p>• Match two answers that belong to the same question</p>
-                <p>• Matched pairs stay revealed</p>
-                <p>• Most matches wins!</p>
-                <p>• Right-click to report inappropriate content</p>
+                <p>1. <span className="text-white font-medium">Answer Questions</span> – Everyone secretly writes their answers to the same set of questions.</p>
+                <p>2. <span className="text-white font-medium">Shuffle & Lay Out</span> – Mix all the answers together and place them face down.</p>
+                <p>3. <span className="text-white font-medium">Take Turns</span> – On your turn, flip two cards. If both answers belong to the same question, keep them and try for more.</p>
+                <p>4. <span className="text-white font-medium">Complete Sets</span> – The goal is to collect full sets of answers for each question. Each completed set earns points.</p>
+                <p>5. <span className="text-white font-medium">Win Together</span> – The player with the most points at the end wins—but the real prize is discovering surprising truths about each other.</p>
+                <p className="pt-2 text-blue-300">Tip: Right-click a revealed card to report inappropriate content.</p>
               </div>
             </div>
           </div>

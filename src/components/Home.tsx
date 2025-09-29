@@ -55,11 +55,11 @@ export default function Home({ onJoinRoom }: HomeProps) {
             Questiontration
           </h1>
           <p className="text-xl md:text-2xl text-blue-200 mb-2">
-            The Memory Game with a Twist
+            A memory game with a twist
           </p>
           <p className="text-lg text-blue-300 max-w-2xl mx-auto">
-            Match answers to the same question in this multiplayer concentration game.
-            Create questions together, then test your memory!
+            Instead of matching symbols, you&apos;re matching real answers to thought-provoking questions.
+            The points are fun, but the real reward is learning more about each other.
           </p>
         </div>
 
@@ -131,18 +131,26 @@ export default function Home({ onJoinRoom }: HomeProps) {
         {/* How to Play */}
         <div className="mt-12 bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
           <h3 className="text-xl font-bold text-white mb-4 text-center">How to Play</h3>
-          <div className="grid md:grid-cols-3 gap-6 text-sm text-blue-200">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 text-sm text-blue-200">
             <div className="text-center">
               <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-3 text-white font-bold text-lg">1</div>
-              <p><strong className="text-white">Create Questions:</strong> Players submit questions and answers during the collection phase.</p>
+              <p><strong className="text-white">Answer Questions</strong> - Everyone secretly writes their answers to the same set of questions.</p>
             </div>
             <div className="text-center">
               <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-3 text-white font-bold text-lg">2</div>
-              <p><strong className="text-white">Memory Game:</strong> Flip cards to find matching answers to the same question.</p>
+              <p><strong className="text-white">Shuffle & Lay Out</strong> - Mix all the answers together and place them face down.</p>
             </div>
             <div className="text-center">
-              <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3 text-white font-bold text-lg">3</div>
-              <p><strong className="text-white">Score Points:</strong> Match pairs to earn points. Most points wins!</p>
+              <div className="w-12 h-12 bg-yellow-500 rounded-full flex items-center justify-center mx-auto mb-3 text-white font-bold text-lg">3</div>
+              <p><strong className="text-white">Take Turns</strong> - On your turn, flip two cards. If both answers belong to the same question, keep them and try for more.</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3 text-white font-bold text-lg">4</div>
+              <p><strong className="text-white">Complete Sets</strong> - The goal is to collect full sets of answers for each question. Each completed set earns points.</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-indigo-500 rounded-full flex items-center justify-center mx-auto mb-3 text-white font-bold text-lg">5</div>
+              <p><strong className="text-white">Win Together</strong> - The player with the most points at the end wins—but the real prize is discovering surprising truths about each other.</p>
             </div>
           </div>
         </div>
