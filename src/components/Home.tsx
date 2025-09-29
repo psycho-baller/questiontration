@@ -134,23 +134,23 @@ export default function Home({ onJoinRoom }: HomeProps) {
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6 text-sm text-blue-200">
             <div className="text-center">
               <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-3 text-white font-bold text-lg">1</div>
-              <p><strong className="text-white">Answer Questions</strong> - Everyone secretly writes their answers to the same set of questions.</p>
+              <p><strong className="text-white">Answer Questions</strong>: Everyone secretly writes their answers to the same set of questions.</p>
             </div>
             <div className="text-center">
               <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-3 text-white font-bold text-lg">2</div>
-              <p><strong className="text-white">Shuffle & Lay Out</strong> - Mix all the answers together and place them face down.</p>
+              <p><strong className="text-white">Shuffle & Lay Out</strong>: Mix all the answers together and place them face down.</p>
             </div>
             <div className="text-center">
               <div className="w-12 h-12 bg-yellow-500 rounded-full flex items-center justify-center mx-auto mb-3 text-white font-bold text-lg">3</div>
-              <p><strong className="text-white">Take Turns</strong> - On your turn, flip two cards. If both answers belong to the same question, keep them and try for more.</p>
+              <p><strong className="text-white">Take Turns</strong>: On your turn, flip two cards. If both answers belong to the same question, keep them and try for more.</p>
             </div>
             <div className="text-center">
               <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3 text-white font-bold text-lg">4</div>
-              <p><strong className="text-white">Complete Sets</strong> - The goal is to collect full sets of answers for each question. Each completed set earns points.</p>
+              <p><strong className="text-white">Complete Sets</strong>: The goal is to collect full sets of answers for each question. Each completed set earns points.</p>
             </div>
             <div className="text-center">
               <div className="w-12 h-12 bg-indigo-500 rounded-full flex items-center justify-center mx-auto mb-3 text-white font-bold text-lg">5</div>
-              <p><strong className="text-white">Win Together</strong> - The player with the most points at the end wins—but the real prize is discovering surprising truths about each other.</p>
+              <p><strong className="text-white">Win Together</strong>: The player with the most points at the end wins—but the real prize is discovering surprising truths about each other.</p>
             </div>
           </div>
         </div>
