@@ -5,6 +5,8 @@ import { Id } from '../../convex/_generated/dataModel';
 import { useSessionMutation, useSessionQuery } from '../hooks/useServerSession';
 import IsolatedAnswerInput from './IsolatedAnswerInput';
 
+const isDev = process.env.NODE_ENV === 'development';
+
 interface CollectPhaseProps {
   roomState: {
     room: {
@@ -34,6 +36,7 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
   const [newQuestion, setNewQuestion] = useState('');
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(120); // 2 minutes default
+  const [isFilling, setIsFilling] = useState(false);
 
   const questionPool = useQuery(api.questionPool.questionPool, { roomId });
   const gameState = useQuery(api.gameState.gameState, { roomId });
@@ -44,6 +47,7 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
   const approveQuestion = useSessionMutation(api.mutations.questions.approveQuestion);
   const assembleBoard = useSessionMutation(api.mutations.games.assembleBoard);
   const leaveRoom = useSessionMutation(api.mutations.rooms.leaveRoom);
+  const fillAll = useMutation(api.mutations.dev.fillAllSubmissions);
 
   const isHost = roomState.members.find(m => m.userId === roomState.host._id)?.role === 'host';
   const gameMode = gameState?.game?.settings?.mode || 'player';
@@ -158,6 +162,19 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
     }
   };
 
+  const handleFillAll = async () => {
+    if (!isDev) return;
+    setIsFilling(true);
+    try {
+      await fillAll({ roomId });
+    } catch (error) { 
+      console.error("Failed to fill all submissions:", error);
+      alert("Failed to fill all submissions.");
+    } finally {
+      setIsFilling(false);
+    }
+  };
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -179,7 +196,18 @@ export default function CollectPhase({ roomState, roomId, onLeaveRoom }: Collect
         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 mb-6 shadow-2xl border border-white/20">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2">Question Collection</h1>
+              <h1 className="text-3xl font-bold text-white mb-2">
+                Question Collection
+                {isDev && (
+                  <button 
+                    onClick={handleFillAll}
+                    disabled={isFilling}
+                    className="ml-4 text-sm bg-purple-600 hover:bg-purple-700 text-white font-bold py-1 px-3 rounded-lg disabled:bg-gray-500 align-middle"
+                  >
+                    {isFilling ? 'Filling...' : 'Fill All'}
+                  </button>
+                )}
+              </h1>
               <p className="text-blue-200">
                 {gameMode === 'curated' ? 'Using curated questions' : 'Create questions and answers together'}
               </p>
