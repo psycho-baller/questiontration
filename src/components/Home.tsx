@@ -19,16 +19,20 @@ export default function Home({ onJoinRoom }: HomeProps) {
   const joinRoom = useSessionMutation(api.mutations.rooms.joinRoom);
   const setHandle = useSessionMutation(api.users.setHandle);
   const createSessionWithHandle = useCreateSession();
-  
+
   // Use regular useQuery with conditional args to handle null sessionId
   const myProfile = useQuery(api.users.getMyProfile, sessionId ? { sessionId } : "skip");
+
+  // Derived validation state for handle
+  const trimmedHandle = handle.trim();
+  const isTooShort = trimmedHandle.length === 1; // show minimal hint only when length is 1
 
   const handleCreateRoom = async () => {
     setIsCreating(true);
     try {
       // Save handle if it's been changed
       await saveHandleIfNeeded();
-      
+
       const result = await createRoom({
         visibility: 'private',
         maxPlayers: 8,
@@ -50,7 +54,7 @@ export default function Home({ onJoinRoom }: HomeProps) {
     try {
       // Save handle if it's been changed
       await saveHandleIfNeeded();
-      
+
       await joinRoom({ code: joinCode.toUpperCase() });
       onJoinRoom(joinCode);
     } catch (error) {
@@ -62,15 +66,16 @@ export default function Home({ onJoinRoom }: HomeProps) {
   };
 
   const saveHandleIfNeeded = async () => {
-    if (handle.trim() && handle.trim() !== myProfile?.handle) {
+    if (trimmedHandle && trimmedHandle !== myProfile?.handle) {
+      if (trimmedHandle.length < 2) return; // don't attempt saving invalid length
       try {
         setIsSavingHandle(true);
         if (!sessionId || !myProfile) {
           // Create new session with custom handle
-          await createSessionWithHandle(handle.trim());
+          await createSessionWithHandle(trimmedHandle);
         } else {
           // Update existing user's handle
-          await setHandle({ handle: handle.trim() });
+          await setHandle({ handle: trimmedHandle });
         }
       } catch (error) {
         console.error('Failed to save handle:', error);
@@ -117,15 +122,18 @@ export default function Home({ onJoinRoom }: HomeProps) {
               <input
                 type="text"
                 value={handle}
-                onChange={(e) => setHandleState(e.target.value.slice(0, 50))}
+                onChange={(e) => setHandleState(e.target.value.slice(0, 24))}
                 placeholder="Enter your handle"
                 className="w-full px-4 py-3 text-center text-lg bg-white/20 border border-white/30 rounded-xl text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-                maxLength={50}
+                maxLength={24}
               />
-              {handle.trim() && handle.trim() !== myProfile?.handle && (
+              {isTooShort && (
+                <div className="mt-2 text-xs text-blue-200">Handle must be at least 2 characters.</div>
+              )}
+              {trimmedHandle && trimmedHandle !== myProfile?.handle && (
                 <button
                   onClick={saveHandleIfNeeded}
-                  disabled={isSavingHandle}
+                  disabled={isSavingHandle || isTooShort}
                   className="mt-3 px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-500 text-white text-sm rounded-lg transition-colors"
                 >
                   {isSavingHandle ? 'Saving...' : 'Save Handle'}

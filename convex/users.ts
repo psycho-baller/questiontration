@@ -116,10 +116,10 @@ export const setHandle = sessionMutation({
   args: { handle: v.string() },
   handler: async (ctx, { handle }) => {
     const user = await getUserById(ctx.db, ctx.session.userId);
-    if (handle.length > 50) throw new Error("Handle too long");
-    if (handle.length < 1) throw new Error("Handle too short");
-
-    await ctx.db.patch(user._id, { handle: handle.trim() });
+    const trimmed = handle.trim();
+    if (trimmed.length < 2) throw new Error("Handle too short");
+    if (trimmed.length > 24) throw new Error("Handle too long");
+    await ctx.db.patch(user._id, { handle: trimmed });
   },
 });
 
