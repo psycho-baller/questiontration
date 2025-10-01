@@ -82,12 +82,12 @@ export default function Home({ onJoinRoom }: HomeProps) {
     }
   };
 
-  // Load existing handle when profile is available
+  // Load existing handle when profile is available (only once, not when user clears the field)
   useEffect(() => {
     if (myProfile && !handle) {
       setHandleState(myProfile.handle || '');
     }
-  }, [myProfile, handle]);
+  }, [myProfile]); // Removed 'handle' from dependencies so it only runs when myProfile changes
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center p-4">
