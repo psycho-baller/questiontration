@@ -12,7 +12,7 @@ export default defineSchema({
 
   // Game rooms - the main container for a game session
   rooms: defineTable({
-    code: v.string(), // 4-6 alphanumeric code for joining
+    code: v.string(), // 4-character alphanumeric code for joining
     hostUserId: v.id("users"),
     visibility: v.union(v.literal("private"), v.literal("public")),
     status: v.union(

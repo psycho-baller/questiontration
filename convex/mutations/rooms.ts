@@ -4,11 +4,11 @@ import { Doc, Id } from "../_generated/dataModel";
 import { sessionMutation } from "../lib/myFunctions";
 import { getUserById } from "../users";
 
-// Generate a random room code (4-6 alphanumeric characters)
+// Generate a random room code (4 alphanumeric characters)
 function generateRoomCode(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const chars = "ABCDEFGHIJKLMNPQRSTUVWXYZ0123456789";
   let result = "";
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 4; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return result;
@@ -106,7 +106,7 @@ export const joinRoom = sessionMutation({
     // Check if user is already a member
     const existingMembership = await ctx.db
       .query("memberships")
-      .withIndex("by_room_and_user", (q) => 
+      .withIndex("by_room_and_user", (q) =>
         q.eq("roomId", room._id).eq("userId", user._id)
       )
       .unique();
@@ -169,7 +169,7 @@ export const leaveRoom = sessionMutation({
     // Find membership
     const membership = await ctx.db
       .query("memberships")
-      .withIndex("by_room_and_user", (q) => 
+      .withIndex("by_room_and_user", (q) =>
         q.eq("roomId", args.roomId).eq("userId", user._id)
       )
       .unique();
@@ -192,7 +192,7 @@ export const leaveRoom = sessionMutation({
 
     // If this was the host leaving, we might need to handle host transfer
     // For now, we'll leave the room orphaned - could be enhanced later
-    
+
     return null;
   },
 });
@@ -210,7 +210,7 @@ export const setReady = sessionMutation({
     // Find membership
     const membership = await ctx.db
       .query("memberships")
-      .withIndex("by_room_and_user", (q) => 
+      .withIndex("by_room_and_user", (q) =>
         q.eq("roomId", args.roomId).eq("userId", user._id)
       )
       .unique();
@@ -242,7 +242,7 @@ export const kickMember = sessionMutation({
     // Verify user is host
     const hostMembership = await ctx.db
       .query("memberships")
-      .withIndex("by_room_and_user", (q) => 
+      .withIndex("by_room_and_user", (q) =>
         q.eq("roomId", args.roomId).eq("userId", user._id)
       )
       .unique();
@@ -254,7 +254,7 @@ export const kickMember = sessionMutation({
     // Find target membership
     const targetMembership = await ctx.db
       .query("memberships")
-      .withIndex("by_room_and_user", (q) => 
+      .withIndex("by_room_and_user", (q) =>
         q.eq("roomId", args.roomId).eq("userId", args.userId)
       )
       .unique();

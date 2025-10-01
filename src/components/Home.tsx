@@ -175,16 +175,15 @@ export default function Home({ onJoinRoom }: HomeProps) {
             <div className="text-center">
               <h2 className="text-2xl font-bold text-white mb-4">Join a Game</h2>
               <p className="text-blue-200 mb-6">
-                Enter a room code to join an existing game
               </p>
               <form onSubmit={handleJoinRoom} className="space-y-4">
                 <input
                   type="text"
                   value={joinCode}
-                  onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 6))}
-                  placeholder="Enter room code"
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 4))}
+                  placeholder="Enter 4-letter code"
                   className="w-full px-4 py-3 text-center text-lg font-mono bg-white/20 border border-white/30 rounded-xl text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-                  maxLength={6}
+                  maxLength={4}
                 />
                 <button
                   type="submit"

@@ -49,7 +49,7 @@ export default function ConcentrationApp() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.substring(1);
-      if (hash && hash.length >= 4 && hash.length <= 6) {
+      if (hash && hash.length === 4) {
         setRoomCode(hash.toUpperCase());
       }
     };
