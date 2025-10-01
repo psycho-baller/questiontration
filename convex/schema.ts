@@ -5,7 +5,6 @@ export default defineSchema({
   // User accounts with display info
   users: defineTable({
     handle: v.string(),
-    customHandle: v.optional(v.string()), // User-defined handle that persists across games
     avatarUrl: v.optional(v.string()),
     tokenIdentifier: v.optional(v.string()),
     claimedByUserId: v.optional(v.id("users")),

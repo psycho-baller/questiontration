@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useSessionMutation, useSessionQuery, useCreateSession, SessionContext } from '../hooks/useServerSession';
+import { useSessionMutation, useCreateSession, SessionContext } from '../hooks/useServerSession';
+import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 
 interface HomeProps {
@@ -8,7 +9,7 @@ interface HomeProps {
 
 export default function Home({ onJoinRoom }: HomeProps) {
   const [joinCode, setJoinCode] = useState('');
-  const [handle, setHandle] = useState('');
+  const [handle, setHandleState] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [isSavingHandle, setIsSavingHandle] = useState(false);
@@ -16,9 +17,11 @@ export default function Home({ onJoinRoom }: HomeProps) {
   const sessionId = useContext(SessionContext);
   const createRoom = useSessionMutation(api.mutations.rooms.createRoom);
   const joinRoom = useSessionMutation(api.mutations.rooms.joinRoom);
-  const setCustomHandle = useSessionMutation(api.users.setCustomHandle);
+  const setHandle = useSessionMutation(api.users.setHandle);
   const createSessionWithHandle = useCreateSession();
-  const myProfile = sessionId ? useSessionQuery(api.users.getMyProfile) : undefined;
+  
+  // Use regular useQuery with conditional args to handle null sessionId
+  const myProfile = useQuery(api.users.getMyProfile, sessionId ? { sessionId } : "skip");
 
   const handleCreateRoom = async () => {
     setIsCreating(true);
@@ -59,7 +62,7 @@ export default function Home({ onJoinRoom }: HomeProps) {
   };
 
   const saveHandleIfNeeded = async () => {
-    if (handle.trim() && handle.trim() !== (myProfile?.customHandle || myProfile?.handle)) {
+    if (handle.trim() && handle.trim() !== myProfile?.handle) {
       try {
         setIsSavingHandle(true);
         if (!sessionId || !myProfile) {
@@ -67,7 +70,7 @@ export default function Home({ onJoinRoom }: HomeProps) {
           await createSessionWithHandle(handle.trim());
         } else {
           // Update existing user's handle
-          await setCustomHandle({ customHandle: handle.trim() });
+          await setHandle({ handle: handle.trim() });
         }
       } catch (error) {
         console.error('Failed to save handle:', error);
@@ -82,7 +85,7 @@ export default function Home({ onJoinRoom }: HomeProps) {
   // Load existing handle when profile is available
   useEffect(() => {
     if (myProfile && !handle) {
-      setHandle(myProfile.customHandle || myProfile.handle || '');
+      setHandleState(myProfile.handle || '');
     }
   }, [myProfile, handle]);
 
@@ -114,12 +117,12 @@ export default function Home({ onJoinRoom }: HomeProps) {
               <input
                 type="text"
                 value={handle}
-                onChange={(e) => setHandle(e.target.value.slice(0, 50))}
+                onChange={(e) => setHandleState(e.target.value.slice(0, 50))}
                 placeholder="Enter your handle"
                 className="w-full px-4 py-3 text-center text-lg bg-white/20 border border-white/30 rounded-xl text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                 maxLength={50}
               />
-              {handle.trim() && handle.trim() !== (myProfile?.customHandle || myProfile?.handle) && (
+              {handle.trim() && handle.trim() !== myProfile?.handle && (
                 <button
                   onClick={saveHandleIfNeeded}
                   disabled={isSavingHandle}

@@ -19,6 +19,7 @@ import type * as game from "../game.js";
 import type * as gameState from "../gameState.js";
 import type * as lib_myFunctions from "../lib/myFunctions.js";
 import type * as lib_randomSlug from "../lib/randomSlug.js";
+import type * as migrations_removeCustomHandle from "../migrations/removeCustomHandle.js";
 import type * as mutations_flips from "../mutations/flips.js";
 import type * as mutations_games from "../mutations/games.js";
 import type * as mutations_moderation from "../mutations/moderation.js";
@@ -50,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   gameState: typeof gameState;
   "lib/myFunctions": typeof lib_myFunctions;
   "lib/randomSlug": typeof lib_randomSlug;
+  "migrations/removeCustomHandle": typeof migrations_removeCustomHandle;
   "mutations/flips": typeof mutations_flips;
   "mutations/games": typeof mutations_games;
   "mutations/moderation": typeof mutations_moderation;

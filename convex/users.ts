@@ -69,12 +69,12 @@ export const getMyProfile = sessionQuery({
   args: {},
   handler: async (ctx) => {
     if (!ctx.session) return null;
+    console.log("ctx.session", ctx.session);
     const user = await getUserById(ctx.db, ctx.session.userId);
-    return { 
+    return {
       _id: user._id,
       handle: user.handle,
-      customHandle: user.customHandle,
-      avatarUrl: user.avatarUrl 
+      avatarUrl: user.avatarUrl
     };
   },
 });
@@ -87,7 +87,7 @@ export const getUserByToken = myQuery({
   handler: async (ctx, { tokenIdentifier }) => {
     const user = await getUser(ctx.db, tokenIdentifier);
     if (!user) return null;
-    
+
     return {
       _id: user._id,
       handle: user.handle,
@@ -110,20 +110,16 @@ export const setName = sessionMutation({
 });
 
 /**
- * Sets a custom handle that will be used for all games.
+ * Sets a handle that will be used for all games.
  */
-export const setCustomHandle = sessionMutation({
-  args: { customHandle: v.string() },
-  handler: async (ctx, { customHandle }) => {
+export const setHandle = sessionMutation({
+  args: { handle: v.string() },
+  handler: async (ctx, { handle }) => {
     const user = await getUserById(ctx.db, ctx.session.userId);
-    if (customHandle.length > 50) throw new Error("Handle too long");
-    if (customHandle.length < 1) throw new Error("Handle too short");
-    
-    // Update both the custom handle and the current handle
-    await ctx.db.patch(user._id, { 
-      customHandle: customHandle.trim(),
-      handle: customHandle.trim()
-    });
+    if (handle.length > 50) throw new Error("Handle too long");
+    if (handle.length < 1) throw new Error("Handle too short");
+
+    await ctx.db.patch(user._id, { handle: handle.trim() });
   },
 });
 
@@ -162,11 +158,10 @@ export const getOrCreateUser = async (
 ) => {
   const existing = await getUser(db, identity.tokenIdentifier);
   if (existing) return existing._id;
-  
+
   const defaultHandle = identity.givenName ?? identity.name!;
   return await db.insert("users", {
     handle: defaultHandle,
-    customHandle: undefined, // No custom handle initially
     avatarUrl: identity.pictureUrl ?? createGravatarUrl(identity.email!),
     tokenIdentifier: identity.tokenIdentifier,
   });
@@ -176,7 +171,6 @@ export const createAnonymousUser = (db: DatabaseWriter, customHandle?: string) =
   const defaultHandle = customHandle || generateAnonymousHandle();
   return db.insert("users", {
     handle: defaultHandle,
-    customHandle: customHandle,
     avatarUrl: createGravatarUrl(randomSlug()),
   });
 };
@@ -271,12 +265,8 @@ export const createSession = myMutation({
       userId = await createAnonymousUser(ctx.db, customHandle);
     } else if (customHandle) {
       // If user exists but we have a custom handle, update it
-      const user = await getUserById(ctx.db, userId);
-      if (!user.customHandle && customHandle.trim().length > 0) {
-        await ctx.db.patch(userId, { 
-          customHandle: customHandle.trim(),
-          handle: customHandle.trim()
-        });
+      if (customHandle.trim().length > 0) {
+        await ctx.db.patch(userId, { handle: customHandle.trim() });
       }
     }
     return ctx.db.insert("sessions", {
