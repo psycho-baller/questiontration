@@ -37,6 +37,7 @@ export const executeFlipBack = action({
 
       if (!gameState || gameState.game.status !== "active") {
         console.log("Game not active");
+        console.log(gameState);
         return null;
       }
 

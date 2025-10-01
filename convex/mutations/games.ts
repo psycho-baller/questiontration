@@ -239,7 +239,7 @@ export const assembleBoard = sessionMutation({
 
     // Update game status
     await ctx.db.patch(game._id, {
-      status: "ready" as const,
+      status: "active" as const,
     });
 
     // Update room status
@@ -281,70 +281,70 @@ function selectTwoAnswers(answers: Doc<"answers">[]): Doc<"answers">[] {
   }
 }
 
-export const startGame = sessionMutation({
-  args: {
-    roomId: v.id("rooms"),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
+// export const startGame = sessionMutation({
+//   args: {
+//     roomId: v.id("rooms"),
+//   },
+//   returns: v.null(),
+//   handler: async (ctx, args) => {
 
-    // Get current game
-    const game = await ctx.db
-      .query("games")
-      .withIndex("by_room_id", (q) => q.eq("roomId", args.roomId))
-      .order("desc")
-      .first();
+//     // Get current game
+//     const game = await ctx.db
+//       .query("games")
+//       .withIndex("by_room_id", (q) => q.eq("roomId", args.roomId))
+//       .order("desc")
+//       .first();
 
-    if (!game) {
-      throw new Error("No active game found");
-    }
+//     if (!game) {
+//       throw new Error("No active game found");
+//     }
 
-    // Verify user is host
-    const room = await ctx.db.get(args.roomId);
-    if (!room || room.hostUserId !== ctx.session.userId) {
-      throw new Error("Only the host can start the game");
-    }
+//     // Verify user is host
+//     const room = await ctx.db.get(args.roomId);
+//     if (!room || room.hostUserId !== ctx.session.userId) {
+//       throw new Error("Only the host can start the game");
+//     }
 
-    if (game.status !== "ready") {
-      throw new Error("Game must be ready to start");
-    }
+//     if (game.status !== "active") {
+//       throw new Error("Game must be active to start");
+//     }
 
-    // Get players for turn order
-    const memberships = await ctx.db
-      .query("memberships")
-      .withIndex("by_room_id", (q) => q.eq("roomId", args.roomId))
-      .collect();
+//     // Get players for turn order
+//     const memberships = await ctx.db
+//       .query("memberships")
+//       .withIndex("by_room_id", (q) => q.eq("roomId", args.roomId))
+//       .collect();
 
-    const players = memberships.filter(m => m.role === "player" || m.role === "host");
+//     const players = memberships.filter(m => m.role === "player" || m.role === "host");
 
-    if (players.length < 2) {
-      throw new Error("Need at least 2 players to start");
-    }
+//     if (players.length < 2) {
+//       throw new Error("Need at least 2 players to start");
+//     }
 
-    // Set first player
-    const firstPlayer = players[0];
+//     // Set first player
+//     const firstPlayer = players[0];
 
-    // Update game status
-    await ctx.db.patch(game._id, {
-      status: "active" as const,
-      currentPlayerId: firstPlayer.userId,
-      startedAt: Date.now(),
-      turnIndex: 0,
-    });
+//     // Update game status
+//     await ctx.db.patch(game._id, {
+//       status: "active" as const,
+//       currentPlayerId: firstPlayer.userId,
+//       startedAt: Date.now(),
+//       turnIndex: 0,
+//     });
 
-    // Log audit event
-    await ctx.db.insert("audit", {
-      type: "game_started",
-      gameId: game._id,
-      roomId: args.roomId,
-      userId: ctx.session.userId,
-      payload: { playerCount: players.length, firstPlayerId: firstPlayer.userId },
-      ts: Date.now(),
-    });
+//     // Log audit event
+//     await ctx.db.insert("audit", {
+//       type: "game_started",
+//       gameId: game._id,
+//       roomId: args.roomId,
+//       userId: ctx.session.userId,
+//       payload: { playerCount: players.length, firstPlayerId: firstPlayer.userId },
+//       ts: Date.now(),
+//     });
 
-    return null;
-  },
-});
+//     return null;
+//   },
+// });
 
 export const endGame = sessionMutation({
   args: {
@@ -561,7 +561,7 @@ export const assembleBoardFromAction = mutation({
 
     // Update game status to ready
     await ctx.db.patch(game._id, {
-      status: "ready" as const,
+      status: "active" as const,
     });
 
     // Update room status

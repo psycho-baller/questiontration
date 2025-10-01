@@ -16,7 +16,7 @@ export const gameState = query({
         pairCount: v.number(),
         status: v.union(
           v.literal("collecting"),
-          v.literal("ready"),
+          // v.literal("ready"),
           v.literal("active"),
           v.literal("complete")
         ),
