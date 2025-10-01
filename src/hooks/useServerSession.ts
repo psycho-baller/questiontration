@@ -21,6 +21,10 @@ import { useQuery, useMutation, useAction } from "convex/react";
 const StoreKey = "ConvexSessionId";
 
 const SessionContext = React.createContext<Id<"sessions"> | null>(null);
+const CreateSessionContext = React.createContext<((customHandle?: string) => Promise<void>) | null>(null);
+
+// Export SessionContext for use in components
+export { SessionContext };
 
 /**
  * Context for a Convex session, creating a server session and providing the id.
@@ -49,22 +53,42 @@ export const SessionProvider: React.FC<{
   });
   const createSession = useMutation(api.users.createSession);
 
+  const createSessionWithHandle = async (customHandle?: string) => {
+    const newSessionId = await createSession({ customHandle });
+    setSession(newSessionId);
+  };
+
   // Get or set the ID from our desired storage location, whenever it changes.
   useEffect(() => {
     if (sessionId) {
       store?.setItem(StoreKey, sessionId);
     } else {
       void (async () => {
-        setSession(await createSession());
+        setSession(await createSession({}));
       })();
     }
   }, [sessionId, createSession, store]);
 
   return React.createElement(
-    SessionContext.Provider,
-    { value: sessionId },
-    children
+    CreateSessionContext.Provider,
+    { value: createSessionWithHandle },
+    React.createElement(
+      SessionContext.Provider,
+      { value: sessionId },
+      children
+    )
   );
+};
+
+/**
+ * Hook to create a new session with an optional custom handle
+ */
+export const useCreateSession = () => {
+  const createSessionWithHandle = useContext(CreateSessionContext);
+  if (!createSessionWithHandle) {
+    throw new Error("useCreateSession must be used within a SessionProvider");
+  }
+  return createSessionWithHandle;
 };
 
 type SessionFunction<Args extends any> = FunctionReference<

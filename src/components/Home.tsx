@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useSessionMutation } from '../hooks/useServerSession';
+import React, { useState, useEffect, useContext } from 'react';
+import { useSessionMutation, useSessionQuery, useCreateSession, SessionContext } from '../hooks/useServerSession';
 import { api } from '../../convex/_generated/api';
 
 interface HomeProps {
@@ -8,15 +8,24 @@ interface HomeProps {
 
 export default function Home({ onJoinRoom }: HomeProps) {
   const [joinCode, setJoinCode] = useState('');
+  const [handle, setHandle] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  const [isSavingHandle, setIsSavingHandle] = useState(false);
 
+  const sessionId = useContext(SessionContext);
   const createRoom = useSessionMutation(api.mutations.rooms.createRoom);
   const joinRoom = useSessionMutation(api.mutations.rooms.joinRoom);
+  const setCustomHandle = useSessionMutation(api.users.setCustomHandle);
+  const createSessionWithHandle = useCreateSession();
+  const myProfile = sessionId ? useSessionQuery(api.users.getMyProfile) : undefined;
 
   const handleCreateRoom = async () => {
     setIsCreating(true);
     try {
+      // Save handle if it's been changed
+      await saveHandleIfNeeded();
+      
       const result = await createRoom({
         visibility: 'private',
         maxPlayers: 8,
@@ -36,6 +45,9 @@ export default function Home({ onJoinRoom }: HomeProps) {
 
     setIsJoining(true);
     try {
+      // Save handle if it's been changed
+      await saveHandleIfNeeded();
+      
       await joinRoom({ code: joinCode.toUpperCase() });
       onJoinRoom(joinCode);
     } catch (error) {
@@ -45,6 +57,34 @@ export default function Home({ onJoinRoom }: HomeProps) {
       setIsJoining(false);
     }
   };
+
+  const saveHandleIfNeeded = async () => {
+    if (handle.trim() && handle.trim() !== (myProfile?.customHandle || myProfile?.handle)) {
+      try {
+        setIsSavingHandle(true);
+        if (!sessionId || !myProfile) {
+          // Create new session with custom handle
+          await createSessionWithHandle(handle.trim());
+        } else {
+          // Update existing user's handle
+          await setCustomHandle({ customHandle: handle.trim() });
+        }
+      } catch (error) {
+        console.error('Failed to save handle:', error);
+        alert('Failed to save handle. Please try again.');
+        throw error;
+      } finally {
+        setIsSavingHandle(false);
+      }
+    }
+  };
+
+  // Load existing handle when profile is available
+  useEffect(() => {
+    if (myProfile && !handle) {
+      setHandle(myProfile.customHandle || myProfile.handle || '');
+    }
+  }, [myProfile, handle]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center p-4">
@@ -61,6 +101,35 @@ export default function Home({ onJoinRoom }: HomeProps) {
             Instead of matching symbols, you&apos;re matching real answers to thought-provoking questions.
             The points are fun, but the real reward is learning more about each other.
           </p>
+        </div>
+
+        {/* Handle Input */}
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 shadow-2xl border border-white/20 mb-8">
+          <div className="text-center">
+            <h2 className="text-xl font-bold text-white mb-3">Your Handle</h2>
+            <p className="text-blue-200 mb-4 text-sm">
+              Choose a name that will be used in all your games
+            </p>
+            <div className="max-w-md mx-auto">
+              <input
+                type="text"
+                value={handle}
+                onChange={(e) => setHandle(e.target.value.slice(0, 50))}
+                placeholder="Enter your handle"
+                className="w-full px-4 py-3 text-center text-lg bg-white/20 border border-white/30 rounded-xl text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                maxLength={50}
+              />
+              {handle.trim() && handle.trim() !== (myProfile?.customHandle || myProfile?.handle) && (
+                <button
+                  onClick={saveHandleIfNeeded}
+                  disabled={isSavingHandle}
+                  className="mt-3 px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-500 text-white text-sm rounded-lg transition-colors"
+                >
+                  {isSavingHandle ? 'Saving...' : 'Save Handle'}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Game Actions */}
