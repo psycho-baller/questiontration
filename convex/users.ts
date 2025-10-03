@@ -69,7 +69,6 @@ export const getMyProfile = sessionQuery({
   args: {},
   handler: async (ctx) => {
     if (!ctx.session) return null;
-    console.log("ctx.session", ctx.session);
     const user = await getUserById(ctx.db, ctx.session.userId);
     return {
       _id: user._id,
