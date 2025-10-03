@@ -35,8 +35,26 @@ interface LobbyProps {
   onLeaveRoom: () => void;
 }
 
+const CURATED_CATEGORIES = {
+  'Getting to Know You': ['Icebreaker', 'Personal', 'Deep'],
+  'Favorites': ['Superficial', 'Considered', 'Deep'],
+  'Hypotheticals': ['Silly', 'Serious', 'Profound'],
+  'University Life': ['Campus Life', 'Academics', 'Future'],
+  'Dreams and Aspirations': ['Goals', 'Ambition', 'Legacy'],
+  'Last Time I...': ['Quick Hits', 'Adventures', 'Vulnerable'],
+  'Storytime': ['Lighthearted', 'Wild Tales', 'Reflective'],
+  'All bout books': ['Favorites', 'Deep Cuts', 'Perspective'],
+  'All bout movies & TV': ['Favorites', 'Recent Watches', 'Emotional'],
+  'All bout music': ['Favorites', 'Recent Plays', 'Emotional'],
+  'All bout games': ['Favorites', 'Habits', 'Nostalgia'],
+  'All bout food': ['Favorites', 'Cravings', 'Comfort'],
+  'All bout travel': ['Favorites', 'Memories', 'Transformative'],
+};
+
 export default function Lobby({ roomState, onLeaveRoom }: LobbyProps) {
   const [gameMode, setGameMode] = useState<'curated' | 'player'>('curated');
+  const [category, setCategory] = useState(Object.keys(CURATED_CATEGORIES)[0]);
+  const [level, setLevel] = useState(1);
   const [maxPlayers, setMaxPlayers] = useState(8);
   const [turnSeconds, setTurnSeconds] = useState(20);
   const [collectSeconds, setCollectSeconds] = useState(120);
@@ -107,6 +125,8 @@ export default function Lobby({ roomState, onLeaveRoom }: LobbyProps) {
           turnSeconds,
           collectSeconds,
           contentRating: 'PG',
+          category: gameMode === 'curated' ? category : undefined,
+          level: gameMode === 'curated' ? level : undefined,
         },
       });
     } catch (error) {
@@ -244,6 +264,40 @@ export default function Lobby({ roomState, onLeaveRoom }: LobbyProps) {
                       }
                     </p>
                   </div>
+
+                  {gameMode === 'curated' && (
+                    <>
+                      <div>
+                        <label className="block text-white font-medium mb-2">Category</label>
+                        <select
+                          value={category}
+                          onChange={(e) => {
+                            setCategory(e.target.value);
+                            setLevel(1); // Reset level when category changes
+                          }}
+                          className="w-full bg-white/20 border border-white/30 rounded-lg px-3 py-2 text-white"
+                        >
+                          {Object.keys(CURATED_CATEGORIES).map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-white font-medium mb-2">Depth</label>
+                        <select
+                          value={level}
+                          onChange={(e) => setLevel(Number(e.target.value))}
+                          className="w-full bg-white/20 border border-white/30 rounded-lg px-3 py-2 text-white"
+                        >
+                          {(CURATED_CATEGORIES[category as keyof typeof CURATED_CATEGORIES] || []).map((levelName, index) => (
+                            <option key={index} value={index + 1}>
+                              {`Level ${index + 1}: ${levelName}`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  )}
 
                   <div>
                     <label className="block text-white font-medium mb-2">
