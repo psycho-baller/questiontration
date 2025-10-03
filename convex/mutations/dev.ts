@@ -44,38 +44,57 @@ export const fillAllSubmissions = mutation({
 
     const players = members.filter(m => m.role === 'player' || m.role === 'host');
 
-    // Generate a consistent answer for each question (same answer for all players)
-    const questionAnswers = new Map<string, string>();
+    // Get player handles for including in answers
+    const playerHandles = new Map<string, string>();
+    for (const player of players) {
+      const user = await ctx.db.get(player.userId);
+      playerHandles.set(player.userId, user?.handle || "Unknown");
+    }
+
+    // Generate diverse answers for each question-player combination
+    const questionAnswers = new Map<string, Map<string, string>>();
     
     for (const question of questions) {
-      // Use question ID as seed for consistent randomness
-      const questionSeed = question._id.slice(-8); // Use last 8 chars of question ID
-      const seedNumber = parseInt(questionSeed, 16) || 0;
+      const playerAnswers = new Map<string, string>();
       
-      // Generate more diverse answers based on question ID
-      const word1Index = seedNumber % randomWords.length;
-      // Ensure second word is different from first word
-      let word2Index = Math.floor(seedNumber / randomWords.length) % randomWords.length;
-      if (word2Index === word1Index) {
-        word2Index = (word2Index + 1) % randomWords.length;
+      for (const player of players) {
+        // Use question ID + player ID as seed for consistent randomness per player
+        const combinedSeed = question._id.slice(-4) + player.userId.slice(-4);
+        const seedNumber = parseInt(combinedSeed, 16) || 0;
+        
+        // Generate more diverse answers based on question + player
+        const word1Index = seedNumber % randomWords.length;
+        // Ensure second word is different from first word
+        let word2Index = Math.floor(seedNumber / randomWords.length) % randomWords.length;
+        if (word2Index === word1Index) {
+          word2Index = (word2Index + 1) % randomWords.length;
+        }
+        
+        const playerHandle = playerHandles.get(player.userId) || "Unknown";
+        
+        // Add diverse variations that include the current player's handle
+        const variations = [
+          `${randomWords[word1Index]} ${randomWords[word2Index]} (by ${playerHandle})`,
+          `${playerHandle} says: ${randomWords[word1Index]} and ${randomWords[word2Index]}`,
+          `${playerHandle}'s choice: ${randomWords[word1Index]} or ${randomWords[word2Index]}`,
+          `${playerHandle} answers: Definitely ${randomWords[word1Index]}`,
+          `${playerHandle} thinks: Maybe ${randomWords[word2Index]}`,
+          `${randomWords[word1Index]} (but not ${randomWords[word2Index]}) - ${playerHandle}`,
+          `${playerHandle}: ${randomWords[word1Index]}, obviously`,
+          `${randomWords[word2Index]} for sure! (${playerHandle})`,
+          `${playerHandle}'s take: ${randomWords[word1Index]} with ${randomWords[word2Index]}`,
+          `From ${playerHandle}: ${randomWords[word1Index]} ${randomWords[word2Index]}`,
+          `${playerHandle} wants: ${randomWords[word1Index]} not ${randomWords[word2Index]}`,
+          `${playerHandle}'s answer: ${randomWords[word1Index]}`,
+        ];
+        
+        const variationIndex = (seedNumber * 13) % variations.length;
+        const playerAnswer = variations[variationIndex];
+        
+        playerAnswers.set(player.userId, playerAnswer);
       }
       
-      // Add some variation with adjectives and formats
-      const variations = [
-        `${randomWords[word1Index]} ${randomWords[word2Index]}`,
-        `${randomWords[word1Index]} and ${randomWords[word2Index]}`,
-        `${randomWords[word1Index]} or ${randomWords[word2Index]}`,
-        `Definitely ${randomWords[word1Index]}`,
-        `Maybe ${randomWords[word2Index]}`,
-        `${randomWords[word1Index]} (but not ${randomWords[word2Index]})`,
-        `${randomWords[word1Index]}, obviously`,
-        `${randomWords[word2Index]} for sure`,
-      ];
-      
-      const variationIndex = (seedNumber * 7) % variations.length; // Use different multiplier for more spread
-      const consistentAnswer = variations[variationIndex];
-      
-      questionAnswers.set(question._id, consistentAnswer);
+      questionAnswers.set(question._id, playerAnswers);
     }
 
     for (const player of players) {
@@ -90,12 +109,17 @@ export const fillAllSubmissions = mutation({
           .unique();
 
         if (!existingAnswer) {
-          await ctx.db.insert("answers", {
-            questionId: question._id,
-            createdByUserId: player.userId,
-            roomId: roomId,
-            text: questionAnswers.get(question._id)!,
-          });
+          const playerAnswers = questionAnswers.get(question._id);
+          const answerText = playerAnswers?.get(player.userId);
+          
+          if (answerText) {
+            await ctx.db.insert("answers", {
+              questionId: question._id,
+              createdByUserId: player.userId,
+              roomId: roomId,
+              text: answerText,
+            });
+          }
         }
       }
     }
