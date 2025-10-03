@@ -2,6 +2,7 @@ import { sessionMutation } from "../lib/myFunctions";
 import { v } from "convex/values";
 import { Doc, Id } from "../_generated/dataModel";
 import { randomSlug } from "../lib/randomSlug";
+import { curatedQuestionsData } from "../lib/curatedQuestions";
 import { getUserById } from "../users";
 import { mutation } from "../_generated/server";
 
@@ -24,6 +25,8 @@ export const startCollection = sessionMutation({
       turnSeconds: v.optional(v.number()),
       collectSeconds: v.optional(v.number()),
       contentRating: v.optional(v.union(v.literal("PG"), v.literal("PG13"))),
+      category: v.optional(v.string()),
+      level: v.optional(v.number()),
     })),
   },
   returns: v.id("games"),
@@ -62,6 +65,8 @@ export const startCollection = sessionMutation({
         turnSeconds: args.settings?.turnSeconds ?? 20,
         collectSeconds: args.settings?.collectSeconds ?? 120,
         contentRating: args.settings?.contentRating ?? "PG",
+        category: args.settings?.category,
+        level: args.settings?.level,
         boardSize: 16,
         pairCount: 8
       },
@@ -90,7 +95,7 @@ export const startCollection = sessionMutation({
 
     // If curated mode, add preset questions
     if (args.mode === "curated") {
-      await addCuratedQuestions(ctx, args.roomId, ctx.session.userId);
+      await addCuratedQuestions(ctx, args.roomId, ctx.session.userId, args.settings?.category, args.settings?.level);
     }
 
     // Log audit event
@@ -108,33 +113,20 @@ export const startCollection = sessionMutation({
 });
 
 // Helper function to add curated questions
-async function addCuratedQuestions(ctx: any, roomId: Id<"rooms">, userId: Id<"users">) {
-  // Load curated questions from JSON file
-  const curatedQuestions = [
-    // "What's your favorite childhood memory?",
-    "If you could have dinner with anyone, who would it be?",
-    "What's the best advice you've ever received?",
-    "What's your biggest fear?",
-    "What's your dream vacation destination?",
-    "What's the most interesting thing about you?",
-    "What's your favorite book or movie?",
-    "What would you do with a million dollars?",
-    "What would you do if you were not a student?",
-    "What's your biggest accomplishment?",
-    "What's something you've always wanted to learn?",
-    "What's your favorite way to spend a weekend?",
-    "What's the best gift you've ever received?",
-    "Your go-to study spot on campus",
-    "One UCalgary club or community you enjoy most?",
-    "One prof or TA style that motivates you most?",
-    "One stress reset you use during midterms?",
-    "Favorite quick lunch or snack around campus?",
-    "A hidden gem space on the UCalgary campus?",
-    "Your best tip for new UCalgary students",
-  ];
+async function addCuratedQuestions(ctx: any, roomId: Id<"rooms">, userId: Id<"users">, category?: string, level?: number) {
+  const defaultCategory = Object.keys(curatedQuestionsData)[0];
+  const selectedCategory = category && curatedQuestionsData[category] ? category : defaultCategory;
+  const selectedLevel = level && curatedQuestionsData[selectedCategory][level] ? level : 1;
 
-  // Shuffle and take 8 questions
-  const selectedQuestions = shuffleArray(curatedQuestions).slice(0, 8);
+  const questionPool = curatedQuestionsData[selectedCategory][selectedLevel] || [];
+
+  if (questionPool.length === 0) {
+    console.warn(`No questions found for category '${selectedCategory}' and level ${selectedLevel}.`);
+    return;
+  }
+
+  // Shuffle and take up to 8 questions
+  const selectedQuestions = shuffleArray(questionPool).slice(0, 8);
 
   // Insert questions
   for (const questionText of selectedQuestions) {
