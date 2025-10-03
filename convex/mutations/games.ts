@@ -112,24 +112,67 @@ export const startCollection = sessionMutation({
   },
 });
 
-// Helper function to add curated questions
+// Helper function to add curated questions with smart fallback
 async function addCuratedQuestions(ctx: any, roomId: Id<"rooms">, userId: Id<"users">, category?: string, level?: number) {
   const defaultCategory = Object.keys(curatedQuestionsData)[0];
   const selectedCategory = category && curatedQuestionsData[category] ? category : defaultCategory;
   const selectedLevel = level && curatedQuestionsData[selectedCategory][level] ? level : 1;
+  const targetCount = 8; // Number of questions needed
 
-  const questionPool = curatedQuestionsData[selectedCategory][selectedLevel] || [];
+  // Start with ALL questions from the selected level (don't shuffle yet)
+  const primaryQuestions = [...(curatedQuestionsData[selectedCategory][selectedLevel] || [])];
+  let selectedQuestions: string[] = [];
+  
+  // Take all questions from the primary level first
+  selectedQuestions.push(...primaryQuestions);
+  
+  console.log(`Found ${primaryQuestions.length} questions in category '${selectedCategory}' level ${selectedLevel}`);
+  
+  // If we need more questions, add from neighboring levels with priority
+  if (selectedQuestions.length < targetCount) {
+    let needed = targetCount - selectedQuestions.length;
+    console.log(`Need ${needed} more questions. Looking at neighboring levels...`);
+    
+    // Get all available levels for this category, sorted by proximity to selected level
+    const availableLevels = Object.keys(curatedQuestionsData[selectedCategory])
+      .map(Number)
+      .filter(lvl => lvl !== selectedLevel)
+      .sort((a, b) => Math.abs(a - selectedLevel) - Math.abs(b - selectedLevel));
+    
+    // Add questions from neighboring levels in order of proximity
+    for (const fallbackLevel of availableLevels) {
+      if (needed <= 0) break; // Stop if we have enough questions
+      
+      const fallbackQuestions = curatedQuestionsData[selectedCategory][fallbackLevel] || [];
+      // Add questions that aren't already in our selected list
+      const newQuestions = fallbackQuestions.filter(q => !selectedQuestions.includes(q));
+      
+      if (newQuestions.length > 0) {
+        // Shuffle questions from this level and take what we need
+        const shuffledLevelQuestions = shuffleArray(newQuestions);
+        const questionsToTake = shuffledLevelQuestions.slice(0, needed);
+        selectedQuestions.push(...questionsToTake);
+        
+        needed -= questionsToTake.length;
+        console.log(`Added ${questionsToTake.length} questions from level ${fallbackLevel} (distance: ${Math.abs(fallbackLevel - selectedLevel)}). Still need: ${needed}`);
+      }
+    }
+    
+    console.log(`Total questions after fallback: ${selectedQuestions.length}`);
+  }
 
-  if (questionPool.length === 0) {
-    console.warn(`No questions found for category '${selectedCategory}' and level ${selectedLevel}.`);
+  if (selectedQuestions.length === 0) {
+    console.warn(`No questions found for category '${selectedCategory}' at any level.`);
     return;
   }
 
-  // Shuffle and take up to 8 questions
-  const selectedQuestions = shuffleArray(questionPool).slice(0, 8);
+  // Now shuffle the final selection and take up to target count
+  const finalQuestions = shuffleArray(selectedQuestions).slice(0, targetCount);
+  
+  console.log(`Final selection: ${finalQuestions.length} questions for category '${selectedCategory}' (${primaryQuestions.length} from level ${selectedLevel}, ${finalQuestions.length - primaryQuestions.length} from other levels)`);
 
   // Insert questions
-  for (const questionText of selectedQuestions) {
+  for (const questionText of finalQuestions) {
     await ctx.db.insert("questions", {
       text: questionText,
       createdByUserId: userId,
