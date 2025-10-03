@@ -4,6 +4,151 @@ import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { useSessionMutation, useSessionQuery } from '../hooks/useServerSession';
 
+// Author Guessing UI Component
+interface AuthorGuessingUIProps {
+  currentTurn: {
+    _id: string;
+    picks: string[];
+    awaitingAuthorGuess?: boolean;
+  };
+  gameState: {
+    cards: Array<{
+      _id: string;
+      position: number;
+      state: 'faceDown' | 'faceUp' | 'matched';
+      answerText?: string;
+      questionText?: string;
+      answerId?: string;
+    }>;
+  };
+  roomState: {
+    members: Array<{
+      userId: string;
+      user: {
+        _id: string;
+        handle: string;
+      };
+    }>;
+  };
+  roomId: Id<"rooms">;
+  onSubmitGuess: (args: {
+    roomId: Id<"rooms">;
+    guesses: Array<{
+      answerId: Id<"answers">;
+      guessedAuthorId: Id<"users">;
+    }>;
+  }) => Promise<any>;
+}
+
+function AuthorGuessingUI({ currentTurn, gameState, roomState, roomId, onSubmitGuess }: AuthorGuessingUIProps) {
+  const [guesses, setGuesses] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Get the matched cards from the turn picks in the same order as backend
+  const matchedCards = currentTurn.picks.map(cardId =>
+    gameState.cards.find(card => card._id === cardId)
+  ).filter(Boolean);
+
+  // Get all players for the dropdown
+  const players = roomState.members.map(member => ({
+    id: member.user._id,
+    handle: member.user.handle,
+  }));
+
+  const handleGuessChange = (cardIndex: number, playerId: string) => {
+    setGuesses(prev => ({
+      ...prev,
+      [`card_${cardIndex}`]: playerId,
+    }));
+  };
+
+  const handleSubmit = async () => {
+    // Validate that we have exactly 2 cards
+    if (matchedCards.length !== 2) {
+      alert('Error: Expected exactly 2 matched cards');
+      return;
+    }
+
+    // Validate that we have guesses for both cards (using card index)
+    const hasAllGuesses = matchedCards.every((card, index) => 
+      guesses[`card_${index}`]
+    );
+    
+    if (!hasAllGuesses) {
+      alert('Please make a guess for both answers');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Send guesses in the same order as the cards (by index, not by answerId)
+      const guessArray = matchedCards.map((card, index) => ({
+        answerId: card?.answerId as Id<"answers">,
+        guessedAuthorId: guesses[`card_${index}`] as Id<"users">,
+      }));
+
+      const result = await onSubmitGuess({
+        roomId,
+        guesses: guessArray,
+      });
+
+      // The UI will update automatically based on the game state changes
+    } catch (error) {
+      console.error('Failed to submit author guess:', error);
+      alert('Failed to submit guess. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="mt-6 p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg">
+      <h3 className="text-white font-bold text-lg mb-4 text-center">
+        🎉 Great match! Now guess who wrote each answer:
+      </h3>
+
+      <div className="space-y-4">
+        {matchedCards.map((card, index) => {
+          if (!card?.answerId || !card?.answerText) return null;
+
+          return (
+            <div key={card.answerId} className="bg-white/10 p-3 rounded-lg">
+              <div className="text-white font-medium mb-2">
+                Answer {index + 1}: "{card.answerText}"
+              </div>
+              <select
+                value={guesses[`card_${index}`] || ''}
+                onChange={(e) => handleGuessChange(index, e.target.value)}
+                className="w-full p-2 rounded bg-white/20 text-white border border-white/30 focus:border-yellow-500 focus:outline-none"
+                disabled={isSubmitting}
+              >
+                <option value="">Select who wrote this...</option>
+                {players.map(player => (
+                  <option key={player.id} value={player.id} className="text-black">
+                    {player.handle}
+                  </option>
+                ))}
+              </select>
+            </div>
+          );
+        })}
+      </div>
+
+      <button
+        onClick={handleSubmit}
+        disabled={isSubmitting || matchedCards.some((card, index) => !guesses[`card_${index}`])}
+        className={`w-full mt-4 py-3 px-4 rounded-lg font-bold transition-colors ${
+          isSubmitting || matchedCards.some((card, index) => !guesses[`card_${index}`])
+            ? 'bg-gray-500 text-gray-300 cursor-not-allowed'
+            : 'bg-yellow-500 hover:bg-yellow-600 text-white'
+        }`}
+      >
+        {isSubmitting ? 'Submitting...' : 'Submit Guesses'}
+      </button>
+    </div>
+  );
+}
+
 interface BoardProps {
   roomState: {
     room: {
@@ -52,6 +197,12 @@ interface BoardProps {
       playerId: string;
       picks: string[];
       resolved: boolean;
+      awaitingAuthorGuess?: boolean;
+      authorGuesses?: Array<{
+        answerId: string;
+        guessedAuthorId: string;
+      }>;
+      authorGuessCorrect?: boolean;
     };
   };
   roomId: Id<"rooms">;
@@ -67,13 +218,16 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
   const leaveRoom = useSessionMutation(api.mutations.rooms.leaveRoom);
   const reportContent = useSessionMutation(api.mutations.moderation.reportContent);
   const resetGame = useSessionMutation(api.mutations.games.resetGameProgress);
+  const submitAuthorGuess = useSessionMutation(api.mutations.flips.submitAuthorGuess);
   const myProfile = useSessionQuery(api.users.getMyProfile);
 
-  // Get current user
+  // Get current user (the one whose turn it is)
   const currentUser = roomState.members.find(m =>
     m.user._id === gameState.game.currentPlayerId
   );
-  const isCurrentPlayer = gameState.game.currentPlayerId === currentUser?.user._id;
+  // Check if the logged-in user is the current player
+  const isCurrentPlayer = myProfile && gameState.game.currentPlayerId === myProfile._id;
+
   const isHost = myProfile ? roomState.room.hostUserId === myProfile._id : false;
 
   // Turn timer
@@ -132,11 +286,11 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
 
   const handleResetGame = async () => {
     if (!isHost) return;
-    
+
     const confirmed = window.confirm(
       'Are you sure you want to reset the game? This will clear all progress but keep the same questions and answers.'
     );
-    
+
     if (!confirmed) return;
 
     try {
@@ -241,7 +395,7 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
                   Reset Game
                 </button>
               )}
-              
+
               <button
                 onClick={handleLeaveRoom}
                 className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
@@ -298,6 +452,17 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
                   <div className="text-yellow-300 mt-2">
                     {gameState.currentTurn.picks.length}/2 cards selected
                   </div>
+                )}
+
+                {/* Author Guessing UI */}
+                {gameState.currentTurn?.awaitingAuthorGuess && isCurrentPlayer && (
+                  <AuthorGuessingUI
+                    currentTurn={gameState.currentTurn}
+                    gameState={gameState}
+                    roomState={roomState}
+                    roomId={roomId}
+                    onSubmitGuess={submitAuthorGuess}
+                  />
                 )}
               </div>
             </div>

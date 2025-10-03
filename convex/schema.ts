@@ -127,6 +127,13 @@ export default defineSchema({
     correct: v.boolean(),
     startedAt: v.number(),
     resolvedAt: v.optional(v.number()),
+    // Author guessing phase for matched cards
+    awaitingAuthorGuess: v.optional(v.boolean()),
+    authorGuesses: v.optional(v.array(v.object({
+      answerId: v.id("answers"),
+      guessedAuthorId: v.id("users"),
+    }))),
+    authorGuessCorrect: v.optional(v.boolean()),
   })
     .index("by_game_id", ["gameId"])
     .index("by_game_and_player", ["gameId", "playerId"]),

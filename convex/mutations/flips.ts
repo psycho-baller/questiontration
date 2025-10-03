@@ -151,7 +151,7 @@ async function resolveTurn(
     await ctx.db.patch(card1._id, { state: "matched" as const });
     await ctx.db.patch(card2._id, { state: "matched" as const });
 
-    // Award point to current player
+    // Award point to current player immediately for the match
     const score = await ctx.db
       .query("scores")
       .withIndex("by_game_and_player", (q: any) =>
@@ -164,6 +164,11 @@ async function resolveTurn(
         points: score.points + 1,
       });
     }
+
+    // Set turn to await author guessing for potential extra turn
+    await ctx.db.patch(turnId, {
+      awaitingAuthorGuess: true,
+    });
 
     // Log match event
     await ctx.db.insert("audit", {
@@ -208,21 +213,9 @@ async function resolveTurn(
         payload: { completedAt: Date.now() },
         ts: Date.now(),
       });
-    } else if (game.settings.extraTurnOnMatch) {
-      // Current player gets another turn - don't advance
-      // Log extra turn
-      await ctx.db.insert("audit", {
-        type: "extra_turn_awarded",
-        gameId: game._id,
-        roomId,
-        userId: game.currentPlayerId!,
-        payload: { turnId },
-        ts: Date.now(),
-      });
-    } else {
-      // Advance to next player even on match
-      await advanceToNextPlayer(ctx, game, roomId);
     }
+
+    // Don't advance turn yet - wait for author guesses to determine if player gets extra turn
   } else {
     // Not a match - schedule cards to be flipped back after a brief delay
     // This allows players to see both cards before they flip back
@@ -365,32 +358,9 @@ export const flipCardBack = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const card = await ctx.db.get(args.cardId);
-    if (!card) {
-      throw new Error("Card not found");
-    }
-
-    // Only flip back if card is currently face up
-    if (card.state === "faceUp") {
-      await ctx.db.patch(args.cardId, {
-        state: "faceDown" as const,
-      });
-
-      // Get the game to find the roomId
-      const game = await ctx.db.get(card.gameId);
-      if (game) {
-        // Log flip back event
-        await ctx.db.insert("audit", {
-          type: "card_flipped_back",
-          gameId: card.gameId,
-          roomId: game.roomId,
-          payload: { cardId: args.cardId },
-          ts: Date.now(),
-        });
-      }
-    }
-
-    return null;
+    await ctx.db.patch(args.cardId, {
+      state: "faceDown" as const,
+    });
   },
 });
 
@@ -428,5 +398,148 @@ export const resolveTurnManualFromAction = mutation({
     await resolveTurn(ctx, currentTurn._id, currentTurn.picks, game, args.roomId);
 
     return null;
+  },
+});
+
+export const submitAuthorGuess = sessionMutation({
+  args: {
+    roomId: v.id("rooms"),
+    guesses: v.array(v.object({
+      answerId: v.id("answers"),
+      guessedAuthorId: v.id("users"),
+    })),
+  },
+  returns: v.object({
+    correct: v.boolean(),
+    earnedPoint: v.boolean(),
+    continuesTurn: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    // Get current game
+    const game = await ctx.db
+      .query("games")
+      .withIndex("by_room_id", (q) => q.eq("roomId", args.roomId))
+      .order("desc")
+      .first();
+
+    if (!game) {
+      throw new Error("No active game found");
+    }
+
+    // Verify it's the current player's turn
+    if (game.currentPlayerId !== ctx.session.userId) {
+      throw new Error("Not your turn");
+    }
+
+    // Get the current turn that's awaiting author guess
+    const currentTurn = await ctx.db
+      .query("turns")
+      .withIndex("by_game_id", (q) => q.eq("gameId", game._id))
+      .filter((q) => q.eq(q.field("resolved"), true))
+      .filter((q) => q.eq(q.field("awaitingAuthorGuess"), true))
+      .filter((q) => q.eq(q.field("playerId"), ctx.session.userId))
+      .first();
+
+    if (!currentTurn) {
+      throw new Error("No turn awaiting author guess found");
+    }
+
+    // Verify the guesses match the cards in the turn
+    if (args.guesses.length !== 2) {
+      throw new Error("Must provide exactly 2 author guesses");
+    }
+
+    // Get the matched cards to verify the answers
+    const [card1, card2] = await Promise.all([
+      ctx.db.get(currentTurn.picks[0]),
+      ctx.db.get(currentTurn.picks[1]),
+    ]);
+
+    if (!card1 || !card2) {
+      throw new Error("Cards not found");
+    }
+
+    // Get the actual answers to check correctness
+    const [answer1, answer2] = await Promise.all([
+      ctx.db.get(card1.answerId),
+      ctx.db.get(card2.answerId),
+    ]);
+
+    if (!answer1 || !answer2) {
+      throw new Error("Answers not found");
+    }
+
+    // The guesses should be for the two matched cards in order
+    if (args.guesses.length !== 2) {
+      throw new Error("Must provide exactly 2 author guesses");
+    }
+
+    // Match guesses to cards by position (first guess for first card, second for second)
+    const guess1 = args.guesses[0];
+    const guess2 = args.guesses[1];
+
+    const correct1 = guess1.guessedAuthorId === answer1.createdByUserId;
+    const correct2 = guess2.guessedAuthorId === answer2.createdByUserId;
+    const allCorrect = correct1 && correct2;
+
+    // Update the turn with the guesses and result
+    await ctx.db.patch(currentTurn._id, {
+      authorGuesses: args.guesses,
+      authorGuessCorrect: allCorrect,
+      awaitingAuthorGuess: false,
+    });
+
+    let continuesTurn = false;
+
+    if (allCorrect) {
+      // Log successful author guess
+      await ctx.db.insert("audit", {
+        type: "author_guess_correct",
+        gameId: game._id,
+        roomId: args.roomId,
+        userId: ctx.session.userId,
+        payload: {
+          turnId: currentTurn._id,
+          guesses: args.guesses,
+        },
+        ts: Date.now(),
+      });
+
+      // Player gets extra turn for correct author guess (regardless of extraTurnOnMatch setting)
+      continuesTurn = true;
+
+      // Log extra turn
+      await ctx.db.insert("audit", {
+        type: "extra_turn_awarded_author_guess",
+        gameId: game._id,
+        roomId: args.roomId,
+        userId: ctx.session.userId,
+        payload: { turnId: currentTurn._id },
+        ts: Date.now(),
+      });
+    } else {
+      // Incorrect guess - advance to next player
+      await advanceToNextPlayer(ctx, game, args.roomId);
+
+      // Log incorrect author guess
+      await ctx.db.insert("audit", {
+        type: "author_guess_incorrect",
+        gameId: game._id,
+        roomId: args.roomId,
+        userId: ctx.session.userId,
+        payload: {
+          turnId: currentTurn._id,
+          guesses: args.guesses,
+          correctAuthors: [answer1.createdByUserId, answer2.createdByUserId],
+        },
+        ts: Date.now(),
+      });
+    }
+
+    return {
+      correct: allCorrect,
+      earnedPoint: true, // Always true since points were already awarded for the match
+      continuesTurn,
+    };
   },
 });

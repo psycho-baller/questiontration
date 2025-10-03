@@ -66,6 +66,12 @@ export const gameState = query({
         correct: v.boolean(),
         startedAt: v.number(),
         resolvedAt: v.optional(v.number()),
+        awaitingAuthorGuess: v.optional(v.boolean()),
+        authorGuesses: v.optional(v.array(v.object({
+          answerId: v.id("answers"),
+          guessedAuthorId: v.id("users"),
+        }))),
+        authorGuessCorrect: v.optional(v.boolean()),
       })),
     })
   ),
@@ -139,11 +145,16 @@ export const gameState = query({
       })
     );
 
-    // Get current unresolved turn if any
+    // Get current turn (either unresolved or awaiting author guess)
     const currentTurn = await ctx.db
       .query("turns")
       .withIndex("by_game_id", (q) => q.eq("gameId", game._id))
-      .filter((q) => q.eq(q.field("resolved"), false))
+      .filter((q) => 
+        q.or(
+          q.eq(q.field("resolved"), false),
+          q.eq(q.field("awaitingAuthorGuess"), true)
+        )
+      )
       .first();
 
     return {

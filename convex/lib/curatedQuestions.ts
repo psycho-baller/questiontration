@@ -112,14 +112,14 @@ export const curatedQuestionsData: Record<string, Record<number, string[]>> = {
       "What's the most useful thing in your backpack?",
       "What's your favorite time of year on campus?"
     ],
-    2: [
+    2: [ // academic
       "One stress reset you use during midterms?",
       "Your best tip for new UCalgary students?",
       "What's the most interesting course you've taken?",
       "Group projects or solo work?",
       "What's a study hack that actually works for you?"
     ],
-    3: [
+    3: [ // future
       "What's one thing you hope to accomplish after graduation?",
       "If you weren't in your current program, what would you study?",
       "What kind of impact do you want to make in your career?",
