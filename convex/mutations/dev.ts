@@ -44,6 +44,40 @@ export const fillAllSubmissions = mutation({
 
     const players = members.filter(m => m.role === 'player' || m.role === 'host');
 
+    // Generate a consistent answer for each question (same answer for all players)
+    const questionAnswers = new Map<string, string>();
+    
+    for (const question of questions) {
+      // Use question ID as seed for consistent randomness
+      const questionSeed = question._id.slice(-8); // Use last 8 chars of question ID
+      const seedNumber = parseInt(questionSeed, 16) || 0;
+      
+      // Generate more diverse answers based on question ID
+      const word1Index = seedNumber % randomWords.length;
+      // Ensure second word is different from first word
+      let word2Index = Math.floor(seedNumber / randomWords.length) % randomWords.length;
+      if (word2Index === word1Index) {
+        word2Index = (word2Index + 1) % randomWords.length;
+      }
+      
+      // Add some variation with adjectives and formats
+      const variations = [
+        `${randomWords[word1Index]} ${randomWords[word2Index]}`,
+        `${randomWords[word1Index]} and ${randomWords[word2Index]}`,
+        `${randomWords[word1Index]} or ${randomWords[word2Index]}`,
+        `Definitely ${randomWords[word1Index]}`,
+        `Maybe ${randomWords[word2Index]}`,
+        `${randomWords[word1Index]} (but not ${randomWords[word2Index]})`,
+        `${randomWords[word1Index]}, obviously`,
+        `${randomWords[word2Index]} for sure`,
+      ];
+      
+      const variationIndex = (seedNumber * 7) % variations.length; // Use different multiplier for more spread
+      const consistentAnswer = variations[variationIndex];
+      
+      questionAnswers.set(question._id, consistentAnswer);
+    }
+
     for (const player of players) {
       for (const question of questions) {
         const existingAnswer = await ctx.db
@@ -60,7 +94,7 @@ export const fillAllSubmissions = mutation({
             questionId: question._id,
             createdByUserId: player.userId,
             roomId: roomId,
-            text: getRandomWords(),
+            text: questionAnswers.get(question._id)!,
           });
         }
       }
