@@ -32,6 +32,8 @@ export const gameState = query({
           contentRating: v.union(v.literal("PG"), v.literal("PG13")),
           boardSize: v.number(),
           pairCount: v.number(),
+          category: v.optional(v.string()),
+          level: v.optional(v.number()),
         }),
         _creationTime: v.number(),
       }),
