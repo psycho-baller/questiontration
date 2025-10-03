@@ -4,149 +4,21 @@ import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { useSessionMutation, useSessionQuery } from '../hooks/useServerSession';
 
-// Author Guessing UI Component
-interface AuthorGuessingUIProps {
-  currentTurn: {
-    _id: string;
-    picks: string[];
-    awaitingAuthorGuess?: boolean;
-  };
-  gameState: {
-    cards: Array<{
-      _id: string;
-      position: number;
-      state: 'faceDown' | 'faceUp' | 'matched';
-      answerText?: string;
-      questionText?: string;
-      answerId?: string;
-    }>;
-  };
-  roomState: {
-    members: Array<{
-      userId: string;
-      user: {
-        _id: string;
-        handle: string;
-      };
-    }>;
-  };
-  roomId: Id<"rooms">;
-  onSubmitGuess: (args: {
-    roomId: Id<"rooms">;
-    guesses: Array<{
-      answerId: Id<"answers">;
-      guessedAuthorId: Id<"users">;
-    }>;
-  }) => Promise<any>;
-}
-
-function AuthorGuessingUI({ currentTurn, gameState, roomState, roomId, onSubmitGuess }: AuthorGuessingUIProps) {
-  const [guesses, setGuesses] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Get the matched cards from the turn picks in the same order as backend
-  const matchedCards = currentTurn.picks.map(cardId =>
-    gameState.cards.find(card => card._id === cardId)
-  ).filter(Boolean);
-
-  // Get all players for the dropdown
-  const players = roomState.members.map(member => ({
-    id: member.user._id,
-    handle: member.user.handle,
-  }));
-
-  const handleGuessChange = (cardIndex: number, playerId: string) => {
-    setGuesses(prev => ({
-      ...prev,
-      [`card_${cardIndex}`]: playerId,
-    }));
-  };
-
-  const handleSubmit = async () => {
-    // Validate that we have exactly 2 cards
-    if (matchedCards.length !== 2) {
-      alert('Error: Expected exactly 2 matched cards');
-      return;
+// Helper function to generate all possible player pairings
+function generatePlayerPairings(players: Array<{id: string, handle: string}>) {
+  const pairings = [];
+  for (let i = 0; i < players.length; i++) {
+    for (let j = 0; j < players.length; j++) {
+      if (i !== j) {
+        pairings.push({
+          player1: players[i],
+          player2: players[j],
+          label: `${players[i].handle} & ${players[j].handle}`
+        });
+      }
     }
-
-    // Validate that we have guesses for both cards (using card index)
-    const hasAllGuesses = matchedCards.every((card, index) => 
-      guesses[`card_${index}`]
-    );
-    
-    if (!hasAllGuesses) {
-      alert('Please make a guess for both answers');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      // Send guesses in the same order as the cards (by index, not by answerId)
-      const guessArray = matchedCards.map((card, index) => ({
-        answerId: card?.answerId as Id<"answers">,
-        guessedAuthorId: guesses[`card_${index}`] as Id<"users">,
-      }));
-
-      const result = await onSubmitGuess({
-        roomId,
-        guesses: guessArray,
-      });
-
-      // The UI will update automatically based on the game state changes
-    } catch (error) {
-      console.error('Failed to submit author guess:', error);
-      alert('Failed to submit guess. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="mt-6 p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg">
-      <h3 className="text-white font-bold text-lg mb-4 text-center">
-        🎉 Great match! Now guess who wrote each answer:
-      </h3>
-
-      <div className="space-y-4">
-        {matchedCards.map((card, index) => {
-          if (!card?.answerId || !card?.answerText) return null;
-
-          return (
-            <div key={card.answerId} className="bg-white/10 p-3 rounded-lg">
-              <div className="text-white font-medium mb-2">
-                Answer {index + 1}: "{card.answerText}"
-              </div>
-              <select
-                value={guesses[`card_${index}`] || ''}
-                onChange={(e) => handleGuessChange(index, e.target.value)}
-                className="w-full p-2 rounded bg-white/20 text-white border border-white/30 focus:border-yellow-500 focus:outline-none"
-                disabled={isSubmitting}
-              >
-                <option value="">Select who wrote this...</option>
-                {players.map(player => (
-                  <option key={player.id} value={player.id} className="text-black">
-                    {player.handle}
-                  </option>
-                ))}
-              </select>
-            </div>
-          );
-        })}
-      </div>
-
-      <button
-        onClick={handleSubmit}
-        disabled={isSubmitting || matchedCards.some((card, index) => !guesses[`card_${index}`])}
-        className={`w-full mt-4 py-3 px-4 rounded-lg font-bold transition-colors ${
-          isSubmitting || matchedCards.some((card, index) => !guesses[`card_${index}`])
-            ? 'bg-gray-500 text-gray-300 cursor-not-allowed'
-            : 'bg-yellow-500 hover:bg-yellow-600 text-white'
-        }`}
-      >
-        {isSubmitting ? 'Submitting...' : 'Submit Guesses'}
-      </button>
-    </div>
-  );
+  }
+  return pairings;
 }
 
 interface BoardProps {
@@ -186,6 +58,7 @@ interface BoardProps {
       state: 'faceDown' | 'faceUp' | 'matched';
       answerText?: string;
       questionText?: string;
+      answerId?: string;
     }>;
     scores: Array<{
       playerId: string;
@@ -213,6 +86,7 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
   const [flippingCards, setFlippingCards] = useState<Set<string>>(new Set());
   const [turnTimeLeft, setTurnTimeLeft] = useState(gameState.game.settings.turnSeconds);
   const [reportingCard, setReportingCard] = useState<string | null>(null);
+  const [isSubmittingGuess, setIsSubmittingGuess] = useState(false);
 
   const flipCard = useSessionMutation(api.mutations.flips.flipCard);
   const leaveRoom = useSessionMutation(api.mutations.rooms.leaveRoom);
@@ -298,6 +172,47 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
     } catch (error) {
       console.error('Failed to reset game:', error);
       alert('Failed to reset game. Please try again.');
+    }
+  };
+
+  const handleAuthorGuess = async (player1Id: string, player2Id: string) => {
+    if (!gameState.currentTurn?.awaitingAuthorGuess) return;
+    
+    // Get the matched cards from the turn picks
+    const matchedCards = gameState.currentTurn.picks.map(cardId =>
+      gameState.cards.find(card => card._id === cardId)
+    ).filter(Boolean);
+
+    if (matchedCards.length !== 2) {
+      alert('Error: Expected exactly 2 matched cards');
+      return;
+    }
+
+    setIsSubmittingGuess(true);
+    try {
+      // Convert player pairing to individual guesses (same order as backend expects)
+      const guessArray = [
+        {
+          answerId: matchedCards[0]?.answerId as Id<"answers">,
+          guessedAuthorId: player1Id as Id<"users">,
+        },
+        {
+          answerId: matchedCards[1]?.answerId as Id<"answers">,
+          guessedAuthorId: player2Id as Id<"users">,
+        }
+      ];
+
+      await submitAuthorGuess({
+        roomId,
+        guesses: guessArray,
+      });
+
+      // The UI will update automatically based on the game state changes
+    } catch (error) {
+      console.error('Failed to submit author guess:', error);
+      alert('Failed to submit guess. Please try again.');
+    } finally {
+      setIsSubmittingGuess(false);
     }
   };
 
@@ -454,15 +369,63 @@ export default function Board({ roomState, gameState, roomId, onLeaveRoom }: Boa
                   </div>
                 )}
 
-                {/* Author Guessing UI */}
+                {/* Author Guessing Overlay */}
                 {gameState.currentTurn?.awaitingAuthorGuess && isCurrentPlayer && (
-                  <AuthorGuessingUI
-                    currentTurn={gameState.currentTurn}
-                    gameState={gameState}
-                    roomState={roomState}
-                    roomId={roomId}
-                    onSubmitGuess={submitAuthorGuess}
-                  />
+                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 p-8 rounded-2xl shadow-2xl border border-white/20 max-w-2xl w-full mx-4">
+                      <h3 className="text-white font-bold text-2xl mb-6 text-center">
+                        🎉 Great match! Who wrote these answers?
+                      </h3>
+                      
+                      {(() => {
+                        const matchedCards = gameState.currentTurn.picks.map(cardId =>
+                          gameState.cards.find(card => card._id === cardId)
+                        ).filter(Boolean);
+                        
+                        const players = roomState.members.map(member => ({
+                          id: member.user._id,
+                          handle: member.user.handle,
+                        }));
+                        
+                        const pairings = generatePlayerPairings(players);
+                        
+                        return (
+                          <>
+                            {/* Show both answers */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                              {matchedCards.map((card, index) => (
+                                <div key={card?._id} className="bg-white/10 p-4 rounded-lg">
+                                  <div className="text-white font-medium text-center">
+                                    Answer {index + 1}
+                                  </div>
+                                  <div className="text-white/90 text-center mt-2 text-lg">
+                                    "{card?.answerText}"
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            
+                            {/* Player pairing buttons */}
+                            <div className="space-y-3">
+                              <div className="text-white text-center mb-4">
+                                Click a pairing to submit your guess:
+                              </div>
+                              {pairings.map((pairing, index) => (
+                                <button
+                                  key={index}
+                                  onClick={() => handleAuthorGuess(pairing.player1.id, pairing.player2.id)}
+                                  disabled={isSubmittingGuess}
+                                  className="w-full bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-500 text-white py-3 px-4 rounded-lg font-bold transition-colors"
+                                >
+                                  {isSubmittingGuess ? 'Submitting...' : pairing.label}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
