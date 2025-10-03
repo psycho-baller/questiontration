@@ -86,6 +86,8 @@ export default defineSchema({
       turnSeconds: v.number(),
       collectSeconds: v.number(),
       contentRating: v.union(v.literal("PG"), v.literal("PG13")),
+      category: v.optional(v.string()),
+      level: v.optional(v.number()),
     }),
     hostId: v.id("users"),
     playerIds: v.array(v.id("users")),

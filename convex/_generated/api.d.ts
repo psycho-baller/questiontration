@@ -17,6 +17,7 @@ import type * as actions_timers from "../actions/timers.js";
 import type * as crons from "../crons.js";
 import type * as game from "../game.js";
 import type * as gameState from "../gameState.js";
+import type * as lib_curatedQuestions from "../lib/curatedQuestions.js";
 import type * as lib_myFunctions from "../lib/myFunctions.js";
 import type * as lib_randomSlug from "../lib/randomSlug.js";
 import type * as migrations_removeCustomHandle from "../migrations/removeCustomHandle.js";
@@ -51,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   game: typeof game;
   gameState: typeof gameState;
+  "lib/curatedQuestions": typeof lib_curatedQuestions;
   "lib/myFunctions": typeof lib_myFunctions;
   "lib/randomSlug": typeof lib_randomSlug;
   "migrations/removeCustomHandle": typeof migrations_removeCustomHandle;
